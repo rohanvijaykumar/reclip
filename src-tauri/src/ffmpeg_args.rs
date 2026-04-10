@@ -24,12 +24,22 @@ pub struct ConversionSettings {
 /// Audio-only output containers that MUST strip video
 const AUDIO_ONLY_FORMATS: &[&str] = &["mp3", "flac", "wav", "ogg", "opus", "m4a", "aac"];
 
+/// Resolve "auto" hw_accel to the actual detected GPU encoder.
+pub fn resolve_hw_accel(hw_accel: &str, detected_gpu: Option<&str>) -> String {
+    match hw_accel {
+        "auto" => detected_gpu.unwrap_or("software").to_string(),
+        other => other.to_string(),
+    }
+}
+
 /// Build the complete ffmpeg argument list from conversion settings.
 /// Handles container-codec compatibility automatically.
+/// `detected_gpu` is the cached GPU probe result (e.g. "nvenc", "amf", "qsv", "software").
 pub fn build_ffmpeg_args(
     input_path: &str,
     output_path: &str,
     settings: &ConversionSettings,
+    detected_gpu: Option<&str>,
 ) -> Vec<String> {
     let mut args: Vec<String> = Vec::new();
     let out_fmt = settings.output_format.as_str();
@@ -38,11 +48,13 @@ pub fn build_ffmpeg_args(
     // Always overwrite output
     args.push("-y".into());
 
-    // Hardware acceleration (must come before -i)
-    let hw = settings.hw_accel.as_deref().unwrap_or("software");
+    // Resolve "auto" to the actual detected encoder
+    let hw = resolve_hw_accel(
+        settings.hw_accel.as_deref().unwrap_or("software"),
+        detected_gpu,
+    );
     if !is_audio_output {
-        match hw {
-            "auto" => args.extend(["-hwaccel".into(), "auto".into()]),
+        match hw.as_str() {
             "nvenc" => args.extend(["-hwaccel".into(), "cuda".into()]),
             "qsv" => args.extend(["-hwaccel".into(), "qsv".into()]),
             "amf" => args.extend(["-hwaccel".into(), "auto".into()]),
@@ -80,7 +92,7 @@ pub fn build_ffmpeg_args(
             "none" => { args.push("-vn".into()); }
             "copy" => { args.extend(["-c:v".into(), "copy".into()]); }
             codec => {
-                let encoder = resolve_video_encoder(codec, hw);
+                let encoder = resolve_video_encoder(codec, &hw);
                 args.extend(["-c:v".into(), encoder]);
 
                 // Resolution
@@ -105,13 +117,24 @@ pub fn build_ffmpeg_args(
                 match bmode {
                     "crf" => {
                         let crf = settings.crf_value.unwrap_or(23);
-                        if hw == "nvenc" {
-                            args.extend(["-cq".into(), crf.to_string()]);
-                        } else if codec == "vp9" || codec == "av1" {
-                            // VP9 and AV1 use -b:v 0 -crf for CRF mode
-                            args.extend(["-b:v".into(), "0".into(), "-crf".into(), crf.to_string()]);
-                        } else {
-                            args.extend(["-crf".into(), crf.to_string()]);
+                        match hw.as_str() {
+                            "nvenc" => {
+                                // NVENC: use -cq for constant quality + preset for speed
+                                args.extend(["-cq".into(), crf.to_string(), "-preset".into(), "p4".into()]);
+                            }
+                            "amf" => {
+                                args.extend(["-quality".into(), "speed".into(), "-rc".into(), "cqp".into(), "-qp_i".into(), crf.to_string(), "-qp_p".into(), crf.to_string()]);
+                            }
+                            "qsv" => {
+                                args.extend(["-global_quality".into(), crf.to_string(), "-preset".into(), "faster".into()]);
+                            }
+                            _ => {
+                                if codec == "vp9" || codec == "av1" {
+                                    args.extend(["-b:v".into(), "0".into(), "-crf".into(), crf.to_string()]);
+                                } else {
+                                    args.extend(["-crf".into(), crf.to_string()]);
+                                }
+                            }
                         }
                     }
                     "cbr" => {

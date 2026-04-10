@@ -11,6 +11,10 @@ pub struct AppConfig {
     pub theme: String,
     #[serde(default = "default_true")]
     pub clipboard_watch_enabled: bool,
+    #[serde(default = "default_true")]
+    pub hw_accel_enabled: bool,
+    #[serde(default)]
+    pub detected_gpu: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -25,6 +29,8 @@ impl Default for AppConfig {
             notifications_enabled: false,
             theme: "dark".to_string(),
             clipboard_watch_enabled: true,
+            hw_accel_enabled: true,
+            detected_gpu: None,
         }
     }
 }

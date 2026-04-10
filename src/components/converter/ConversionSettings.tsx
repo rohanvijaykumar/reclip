@@ -5,7 +5,7 @@ import { LabeledSelect, LabeledSlider, TimeInput, ChipGroup } from "./SettingCon
 import type { ConversionSettings as Settings, MediaInfo } from "@/types/converter";
 import {
   VIDEO_CODECS, AUDIO_CODECS, RESOLUTIONS, FRAME_RATES,
-  AUDIO_BITRATES, SAMPLE_RATES, CHANNEL_OPTIONS, HW_ACCEL_OPTIONS,
+  AUDIO_BITRATES, SAMPLE_RATES, CHANNEL_OPTIONS,
   OUTPUT_FORMATS, formatDuration,
 } from "@/types/converter";
 
@@ -96,7 +96,6 @@ export function ConversionSettings({ settings, mediaInfo, onChange, outputName, 
             <LabeledSelect label="Codec" value={settings.videoCodec || "h264"} options={VIDEO_CODECS} onChange={(v) => onChange({ videoCodec: v })} />
             <LabeledSelect label="Resolution" value={settings.resolution || "original"} options={RESOLUTIONS} onChange={(v) => onChange({ resolution: v })} disabled={isVideoCopyOrNone} />
             <LabeledSelect label="Frame Rate" value={settings.frameRate || "original"} options={FRAME_RATES} onChange={(v) => onChange({ frameRate: v })} disabled={isVideoCopyOrNone} />
-            <LabeledSelect label="HW Acceleration" value={settings.hwAccel || "auto"} options={HW_ACCEL_OPTIONS} onChange={(v) => onChange({ hwAccel: v })} disabled={isVideoCopyOrNone} />
           </div>
           {!isVideoCopyOrNone && (
             <div className="mt-4 space-y-4">

@@ -1,15 +1,47 @@
-import { ChevronLeft, HardDrive, LayoutGrid, Palette, Bell, Moon, Sun, Monitor, X, ClipboardCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronLeft, HardDrive, LayoutGrid, Palette, Bell, Moon, Sun, Monitor, X, ClipboardCheck, Zap, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useConfig } from "@/contexts/ConfigContext";
 import { open } from "@tauri-apps/plugin-dialog";
+import * as tauri from "@/lib/tauri";
 import type { ReactNode } from "react";
+import type { GpuDetectionResult } from "@/types";
 
 interface Props {
   onBack: () => void;
 }
 
+const GPU_LABELS: Record<string, string> = {
+  nvenc: "NVIDIA GPU detected",
+  amf: "AMD GPU detected",
+  qsv: "Intel GPU detected",
+  software: "No compatible GPU found — using CPU",
+};
+
 export function SettingsView({ onBack }: Props) {
   const { config, updateConfig } = useConfig();
+  const [gpuLabel, setGpuLabel] = useState<string>("");
+  const [isProbing, setIsProbing] = useState(false);
+
+  useEffect(() => {
+    if (config.detectedGpu) {
+      setGpuLabel(GPU_LABELS[config.detectedGpu] || config.detectedGpu);
+    } else {
+      setGpuLabel("Not yet detected");
+    }
+  }, [config.detectedGpu]);
+
+  const handleRedetect = async () => {
+    setIsProbing(true);
+    try {
+      const result = await tauri.detectGpu();
+      setGpuLabel(GPU_LABELS[result.recommended] || result.label);
+      await updateConfig({ detectedGpu: result.recommended });
+    } catch {
+      setGpuLabel("Detection failed");
+    }
+    setIsProbing(false);
+  };
 
   const handleBrowse = async () => {
     try {
@@ -127,6 +159,37 @@ export function SettingsView({ onBack }: Props) {
                 ))}
               </div>
             </Item>
+          </Section>
+
+          {/* Performance */}
+          <Section title="Performance" icon={<Zap size={16} className="text-secondary" />}>
+            <Item
+              label="Hardware Acceleration"
+              description={
+                config.hwAccelEnabled && config.detectedGpu && config.detectedGpu !== "software"
+                  ? gpuLabel
+                  : config.detectedGpu === "software"
+                    ? "No compatible GPU found — using CPU"
+                    : gpuLabel
+              }
+            >
+              <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                <ToggleSwitch
+                  checked={config.hwAccelEnabled && config.detectedGpu !== "software"}
+                  onChange={(v) => updateConfig({ hwAccelEnabled: v })}
+                />
+              </div>
+            </Item>
+            <div className="px-4 pb-3">
+              <button
+                onClick={handleRedetect}
+                disabled={isProbing}
+                className="flex items-center gap-1.5 text-[12px] font-medium text-tertiary hover:text-primary transition-colors disabled:opacity-50"
+              >
+                <RotateCcw size={12} className={isProbing ? "animate-spin" : ""} />
+                {isProbing ? "Detecting..." : "Re-detect GPU"}
+              </button>
+            </div>
           </Section>
 
           {/* Clipboard */}

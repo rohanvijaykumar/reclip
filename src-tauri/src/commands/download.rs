@@ -265,12 +265,19 @@ pub async fn start_download(
         None
     });
 
+    // Read config for HW accel
+    let cfg = crate::config::read_config(&app);
+    let detected_gpu = cfg.detected_gpu.clone();
+    let hw_enabled = cfg.hw_accel_enabled;
+
     // Build yt-dlp args
     let mut args: Vec<String> = vec![
         "--no-playlist".into(),
         "--newline".into(),
         "--progress-template".into(),
         "download:DLP%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s".into(),
+        // Concurrent fragment downloads for faster speeds
+        "--concurrent-fragments".into(), "4".into(),
         "-o".into(),
         out_template,
     ];
@@ -307,6 +314,24 @@ pub async fn start_download(
                 "--merge-output-format".into(), "mp4".into(),
                 "--recode-video".into(), video_fmt,
             ]);
+
+            // Pass HW accel encoder flags to ffmpeg via yt-dlp postprocessor args
+            if hw_enabled {
+                if let Some(ref gpu) = detected_gpu {
+                    let encoder = match gpu.as_str() {
+                        "nvenc" => Some("h264_nvenc"),
+                        "amf" => Some("h264_amf"),
+                        "qsv" => Some("h264_qsv"),
+                        _ => None,
+                    };
+                    if let Some(enc) = encoder {
+                        args.extend([
+                            "--postprocessor-args".into(),
+                            format!("ffmpeg:-c:v {} -preset p4", enc),
+                        ]);
+                    }
+                }
+            }
         } else {
             args.extend(["--merge-output-format".into(), video_fmt]);
         }
@@ -332,8 +357,7 @@ pub async fn start_download(
         .spawn()
         .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?;
 
-    // Read config to determine auto-save directory
-    let cfg = crate::config::read_config(&app);
+    // Determine auto-save directory (reuse cfg from above)
     let save_dir = match cfg.download_path {
         Some(ref p) => std::path::PathBuf::from(p),
         None => app

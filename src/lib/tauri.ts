@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { VideoInfo, PlaylistInfo, ProgressPayload, CompletePayload, ErrorPayload, HistoryEntry } from "@/types";
+import type { VideoInfo, PlaylistInfo, ProgressPayload, CompletePayload, ErrorPayload, HistoryEntry, GpuDetectionResult } from "@/types";
 
 export async function getPlaylistInfo(url: string): Promise<PlaylistInfo> {
   return invoke<PlaylistInfo>("get_playlist_info", { url });
@@ -35,6 +35,10 @@ export async function getHistory(): Promise<HistoryEntry[]> {
 
 export async function clearHistory(): Promise<void> {
   return invoke("clear_history");
+}
+
+export async function detectGpu(): Promise<GpuDetectionResult> {
+  return invoke<GpuDetectionResult>("detect_gpu");
 }
 
 export function onDownloadProgress(cb: (p: ProgressPayload) => void): Promise<UnlistenFn> {

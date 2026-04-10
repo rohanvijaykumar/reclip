@@ -134,6 +134,16 @@ export interface AppConfig {
   notificationsEnabled: boolean;
   theme: "dark" | "light" | "system";
   clipboardWatchEnabled: boolean;
+  hwAccelEnabled: boolean;
+  detectedGpu: string | null;
+}
+
+export interface GpuDetectionResult {
+  hasNvenc: boolean;
+  hasAmf: boolean;
+  hasQsv: boolean;
+  recommended: string;
+  label: string;
 }
 
 export interface HistoryEntry {

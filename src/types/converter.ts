@@ -147,13 +147,8 @@ export const CHANNEL_OPTIONS = [
   { id: "6", label: "5.1 Surround" },
 ];
 
-export const HW_ACCEL_OPTIONS = [
-  { id: "auto", label: "Auto Detect" },
-  { id: "nvenc", label: "NVIDIA NVENC" },
-  { id: "amf", label: "AMD AMF" },
-  { id: "qsv", label: "Intel Quick Sync" },
-  { id: "software", label: "Software (CPU)" },
-];
+// HW accel is now auto-detected and controlled via Settings toggle.
+// "auto" uses detected GPU, "software" forces CPU.
 
 export function defaultSettings(): ConversionSettings {
   return {

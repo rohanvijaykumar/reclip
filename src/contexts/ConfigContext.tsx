@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { AppConfig } from "@/types";
+import type { AppConfig, GpuDetectionResult } from "@/types";
 
 const DEFAULT_CONFIG: AppConfig = {
   downloadPath: null,
@@ -8,6 +8,8 @@ const DEFAULT_CONFIG: AppConfig = {
   notificationsEnabled: false,
   theme: "dark",
   clipboardWatchEnabled: true,
+  hwAccelEnabled: true,
+  detectedGpu: null,
 };
 
 interface ConfigContextValue {
@@ -42,13 +44,26 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const configRef = useRef(config);
   configRef.current = config;
 
-  // Load config on mount
+  // Load config on mount, auto-detect GPU if not yet detected
   useEffect(() => {
     invoke<AppConfig>("get_config")
-      .then((cfg) => {
+      .then(async (cfg) => {
         setConfig(cfg);
         applyTheme(cfg.theme);
         setIsLoaded(true);
+
+        // Auto-detect GPU on first run
+        if (!cfg.detectedGpu) {
+          try {
+            const result = await invoke<GpuDetectionResult>("detect_gpu");
+            const merged = { ...cfg, detectedGpu: result.recommended };
+            setConfig(merged);
+            configRef.current = merged;
+            await invoke("save_config", { config: merged });
+          } catch {
+            // Detection failed — leave as null (will use software)
+          }
+        }
       })
       .catch(() => {
         applyTheme("dark");

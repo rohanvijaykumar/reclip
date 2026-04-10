@@ -118,8 +118,9 @@ pub async fn start_conversion(
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| base_filename.clone());
 
-    // Build ffmpeg args
-    let args = ffmpeg_args::build_ffmpeg_args(&input_path, &output_path_str, &settings);
+    // Build ffmpeg args (pass detected GPU for proper hw accel resolution)
+    let detected_gpu = cfg.detected_gpu.as_deref();
+    let args = ffmpeg_args::build_ffmpeg_args(&input_path, &output_path_str, &settings, detected_gpu);
 
     // Create job
     let job = crate::converter::ConvertJob {

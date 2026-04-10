@@ -36,6 +36,7 @@ fn main() {
             commands::config::get_config,
             commands::config::save_config,
             commands::config::open_download_folder,
+            commands::config::detect_gpu,
             commands::history::get_history,
             commands::history::clear_history,
             commands::convert::probe_file,
