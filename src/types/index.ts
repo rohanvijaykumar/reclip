@@ -84,3 +84,17 @@ export interface AppConfig {
   notificationsEnabled: boolean;
   theme: "dark" | "light" | "system";
 }
+
+export interface HistoryEntry {
+  id: string;
+  url: string;
+  title: string;
+  uploader: string;
+  thumbnail: string;
+  filename: string;
+  savedPath: string;
+  format: string;
+  outputFormat: string;
+  quality: string;
+  timestamp: number;
+}

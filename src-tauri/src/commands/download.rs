@@ -1,8 +1,10 @@
 use crate::jobs::{Job, JobStatus, JobStore};
+use crate::history::{self, HistoryEntry};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
 
@@ -223,7 +225,7 @@ pub async fn start_download(
     // Insert job into store
     let job = Job {
         id: job_id.clone(),
-        url,
+        url: url.clone(),
         title: title.clone(),
         status: JobStatus::Downloading { progress: 0.0 },
     };
@@ -248,6 +250,13 @@ pub async fn start_download(
             .unwrap_or_else(|_| download_dir.clone()),
     };
     std::fs::create_dir_all(&save_dir).ok();
+
+    // Data for history entry + notifications
+    let dl_url = url.clone();
+    let dl_format = format.clone();
+    let dl_output_format = out_fmt.clone();
+    let dl_quality = format_id.clone().unwrap_or_default();
+    let notifications_enabled = cfg.notifications_enabled;
 
     // Spawn async task to read progress events
     let app_handle = app.clone();
@@ -410,6 +419,31 @@ pub async fn start_download(
                     } else {
                         final_dest.to_string_lossy().to_string()
                     };
+
+                    // Append to download history
+                    let entry = HistoryEntry {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        url: dl_url.clone(),
+                        title: title.clone(),
+                        uploader: String::new(), // uploader not passed to download
+                        thumbnail: String::new(), // thumbnail not passed to download
+                        filename: filename.clone(),
+                        saved_path: saved_path_str.clone(),
+                        format: dl_format.clone(),
+                        output_format: dl_output_format.clone(),
+                        quality: dl_quality.clone(),
+                        timestamp: chrono::Utc::now().timestamp(),
+                    };
+                    history::append_history(&app_handle, entry);
+
+                    // Fire native notification if enabled
+                    if notifications_enabled {
+                        let _ = app_handle.notification()
+                            .builder()
+                            .title("Download Complete")
+                            .body(&format!("{} has been saved", filename))
+                            .show();
+                    }
 
                     store.mark_done(&jid, chosen, filename.clone()).await;
                     let _ = app_handle.emit(

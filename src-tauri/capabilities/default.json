@@ -9,6 +9,7 @@
     "shell:allow-spawn",
     "shell:allow-stdin-write",
     "fs:default",
-    "dialog:default"
+    "dialog:default",
+    "notification:default"
   ]
 }

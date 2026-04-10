@@ -55,15 +55,7 @@ export function useDownloadManager(config: AppConfig) {
               : c
           )
         );
-
-        // Fire desktop notification if enabled
-        if (configRef.current.notificationsEnabled && "Notification" in window) {
-          if (Notification.permission === "granted") {
-            new Notification("Download Complete", {
-              body: `${filename} has been saved`,
-            });
-          }
-        }
+        // Notifications are now handled natively in Rust
       })
     );
 
