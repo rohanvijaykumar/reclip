@@ -3,9 +3,13 @@
 
 mod commands;
 mod config;
+mod converter;
+mod ffmpeg_args;
+mod ffprobe;
 mod history;
 mod jobs;
 
+use converter::ConvertJobStore;
 use jobs::JobStore;
 use tauri::Manager;
 
@@ -22,6 +26,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .manage(JobStore::default())
+        .manage(ConvertJobStore::default())
         .invoke_handler(tauri::generate_handler![
             commands::download::get_info,
             commands::download::start_download,
@@ -32,6 +37,9 @@ fn main() {
             commands::config::open_download_folder,
             commands::history::get_history,
             commands::history::clear_history,
+            commands::convert::probe_file,
+            commands::convert::start_conversion,
+            commands::convert::cancel_conversion,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ReClip");

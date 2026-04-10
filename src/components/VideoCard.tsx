@@ -1,4 +1,5 @@
-import { AlertTriangle, Loader2, Download, CheckCircle2, FolderOpen } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Loader2, Download, CheckCircle2, FolderOpen, Pencil } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { fmtDur, friendlyError } from "@/lib/utils";
 import { ImageWithFallback } from "./ImageWithFallback";
@@ -13,9 +14,10 @@ interface Props {
   category: FormatCategory;
   onDownload: () => void;
   onPickFormat: (formatId: string) => void;
+  onRename: (name: string) => void;
 }
 
-export function VideoCard({ data, index, formatLabel, category, onDownload, onPickFormat }: Props) {
+export function VideoCard({ data, index, formatLabel, category, onDownload, onPickFormat, onRename }: Props) {
   // Skeleton / loading state
   if (data.status === "loading") {
     return (
@@ -129,9 +131,17 @@ export function VideoCard({ data, index, formatLabel, category, onDownload, onPi
       {/* Body */}
       <div className="flex-1 flex flex-col justify-between py-0.5">
         <div>
-          <h3 className="font-semibold text-[15px] leading-snug tracking-tight text-primary line-clamp-2 mb-1" title={data.title}>
-            {data.title || "Untitled"}
-          </h3>
+          {/* Editable filename (only in ready state) */}
+          {data.status === "ready" ? (
+            <EditableFilename
+              value={data.customFilename ?? data.title ?? ""}
+              onChange={onRename}
+            />
+          ) : (
+            <h3 className="font-semibold text-[15px] leading-snug tracking-tight text-primary line-clamp-2 mb-1" title={data.title}>
+              {data.customFilename || data.title || "Untitled"}
+            </h3>
+          )}
           <div className="text-[12px] text-secondary flex items-center gap-1.5">
             {data.uploader}
             <span className="w-1 h-1 rounded-full bg-tertiary inline-block" />
@@ -236,6 +246,56 @@ export function VideoCard({ data, index, formatLabel, category, onDownload, onPi
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function EditableFilename({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  if (isEditing) {
+    return (
+      <input
+        autoFocus
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          setIsEditing(false);
+          if (draft.trim()) onChange(draft.trim());
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            setIsEditing(false);
+            if (draft.trim()) onChange(draft.trim());
+          }
+          if (e.key === "Escape") {
+            setIsEditing(false);
+            setDraft(value);
+          }
+        }}
+        className="w-full bg-transparent border-b border-accent text-[15px] font-semibold text-primary leading-snug tracking-tight focus:outline-none py-0.5 mb-0.5"
+      />
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-1.5 group/name mb-1">
+      <h3
+        className="font-semibold text-[15px] leading-snug tracking-tight text-primary line-clamp-2 cursor-text"
+        onClick={() => { setDraft(value); setIsEditing(true); }}
+        title="Click to rename"
+      >
+        {value || "Untitled"}
+      </h3>
+      <button
+        onClick={() => { setDraft(value); setIsEditing(true); }}
+        className="p-0.5 rounded text-tertiary hover:text-accent opacity-0 group-hover/name:opacity-100 transition-opacity shrink-0 mt-0.5"
+        title="Rename"
+      >
+        <Pencil size={12} />
+      </button>
     </div>
   );
 }

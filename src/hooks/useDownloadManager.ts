@@ -141,12 +141,15 @@ export function useDownloadManager(config: AppConfig) {
           ? (AUDIO_FORMATS.find((f) => f.id === outputFormat)?.ytdlpName ?? outputFormat)
           : outputFormat;
 
+        // Use customFilename if set, otherwise fall back to title
+        const downloadTitle = c.customFilename?.trim() || c.title || "";
         const jobId = await tauri.startDownload(
           c.url,
           category,
           c.selectedFormatId || null,
-          c.title || "",
-          resolvedOutputFormat
+          downloadTitle,
+          resolvedOutputFormat,
+          c.thumbnail || null
         );
         setCards((prev) =>
           prev.map((card, i) => (i === index ? { ...card, jobId } : card))
@@ -180,6 +183,14 @@ export function useDownloadManager(config: AppConfig) {
     );
   }, []);
 
+  const setCustomFilename = useCallback((index: number, name: string) => {
+    setCards((prev) =>
+      prev.map((card, i) =>
+        i === index ? { ...card, customFilename: name } : card
+      )
+    );
+  }, []);
+
   return {
     cards,
     category,
@@ -191,5 +202,6 @@ export function useDownloadManager(config: AppConfig) {
     downloadCard,
     downloadAll,
     pickFormat,
+    setCustomFilename,
   };
 }

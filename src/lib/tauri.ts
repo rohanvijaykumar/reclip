@@ -11,9 +11,10 @@ export async function startDownload(
   format: string,
   formatId: string | null,
   title: string,
-  outputFormat: string
+  outputFormat: string,
+  thumbnail: string | null
 ): Promise<string> {
-  return invoke<string>("start_download", { url, format, formatId, title, outputFormat });
+  return invoke<string>("start_download", { url, format, formatId, title, outputFormat, thumbnail });
 }
 
 export async function saveFile(jobId: string): Promise<string> {

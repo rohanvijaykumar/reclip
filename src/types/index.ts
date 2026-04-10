@@ -50,6 +50,7 @@ export interface CardData {
   uploader?: string;
   formats?: FormatOption[];
   selectedFormatId?: string | null;
+  customFilename?: string;
   jobId?: string;
   progress?: number | null;
   speed?: string | null;

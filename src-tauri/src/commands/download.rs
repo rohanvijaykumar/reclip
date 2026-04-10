@@ -138,6 +138,7 @@ pub async fn start_download(
     format_id: Option<String>,
     title: String,
     output_format: Option<String>,
+    thumbnail: Option<String>,
 ) -> Result<String, String> {
     let job_id = uuid::Uuid::new_v4().to_string()[..10].to_string();
 
@@ -256,6 +257,7 @@ pub async fn start_download(
     let dl_format = format.clone();
     let dl_output_format = out_fmt.clone();
     let dl_quality = format_id.clone().unwrap_or_default();
+    let dl_thumbnail = thumbnail.unwrap_or_default();
     let notifications_enabled = cfg.notifications_enabled;
 
     // Spawn async task to read progress events
@@ -367,7 +369,7 @@ pub async fn start_download(
                         }
                     }
 
-                    // Sanitize filename (ports app.py:63-67)
+                    // Build filename: use title, sanitize for filesystem
                     let ext = chosen
                         .extension()
                         .map(|e| format!(".{}", e.to_string_lossy()))
@@ -380,7 +382,7 @@ pub async fn start_download(
                             .collect::<String>()
                             .trim()
                             .chars()
-                            .take(20)
+                            .take(200)
                             .collect::<String>()
                             .trim()
                             .to_string();
@@ -425,8 +427,8 @@ pub async fn start_download(
                         id: uuid::Uuid::new_v4().to_string(),
                         url: dl_url.clone(),
                         title: title.clone(),
-                        uploader: String::new(), // uploader not passed to download
-                        thumbnail: String::new(), // thumbnail not passed to download
+                        uploader: String::new(),
+                        thumbnail: dl_thumbnail.clone(),
                         filename: filename.clone(),
                         saved_path: saved_path_str.clone(),
                         format: dl_format.clone(),

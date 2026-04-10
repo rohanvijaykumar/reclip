@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, FolderOpen, RotateCcw, Trash2, Clock, Download } from "lucide-react";
+import { ChevronLeft, FolderOpen, RotateCcw, Trash2, Clock, Download, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ImageWithFallback } from "./ImageWithFallback";
 import * as tauri from "@/lib/tauri";
@@ -9,6 +9,8 @@ interface Props {
   onBack: () => void;
   onRedownload: (url: string) => void;
 }
+
+type HistoryTab = "downloads" | "conversions";
 
 function formatDate(timestamp: number): string {
   const d = new Date(timestamp * 1000);
@@ -28,6 +30,7 @@ function formatDate(timestamp: number): string {
 export function HistoryView({ onBack, onRedownload }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<HistoryTab>("downloads");
 
   useEffect(() => {
     tauri.getHistory().then((h) => {
@@ -40,6 +43,10 @@ export function HistoryView({ onBack, onRedownload }: Props) {
     await tauri.clearHistory();
     setHistory([]);
   };
+
+  const downloads = history.filter((e) => e.format === "video" || e.format === "audio");
+  const conversions = history.filter((e) => e.format === "convert");
+  const filtered = activeTab === "downloads" ? downloads : conversions;
 
   return (
     <div className="flex flex-col h-full bg-base text-primary animate-slide-in-right z-30 relative">
@@ -54,10 +61,9 @@ export function HistoryView({ onBack, onRedownload }: Props) {
             <span className="text-[13px] font-medium">Back</span>
           </button>
           <div className="h-4 w-[1px] bg-subtle mx-1" />
-          <h2 className="font-semibold text-[15px] tracking-tight">Download History</h2>
-          <span className="text-[12px] text-tertiary ml-1">({history.length})</span>
+          <h2 className="font-semibold text-[15px] tracking-tight">History</h2>
         </div>
-        {history.length > 0 && (
+        {filtered.length > 0 && (
           <button
             onClick={handleClear}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-tertiary hover:text-error rounded-md hover:bg-error/10 transition-colors"
@@ -67,10 +73,44 @@ export function HistoryView({ onBack, onRedownload }: Props) {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="px-6 pt-4 pb-2">
+        <div className="flex glass-card rounded-lg p-1 w-fit">
+          <button
+            onClick={() => setActiveTab("downloads")}
+            className={cn(
+              "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+              activeTab === "downloads"
+                ? "bg-hover text-primary shadow-sm"
+                : "text-tertiary hover:text-secondary"
+            )}
+          >
+            <Download size={14} /> Downloads
+            {downloads.length > 0 && (
+              <span className="text-[10px] bg-subtle px-1.5 py-0.5 rounded-full ml-0.5">{downloads.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("conversions")}
+            className={cn(
+              "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+              activeTab === "conversions"
+                ? "bg-hover text-primary shadow-sm"
+                : "text-tertiary hover:text-secondary"
+            )}
+          >
+            <ArrowLeftRight size={14} /> Conversions
+            {conversions.length > 0 && (
+              <span className="text-[10px] bg-subtle px-1.5 py-0.5 rounded-full ml-0.5">{conversions.length}</span>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto px-6 pb-6">
         {isLoading ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 pt-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="glass-card rounded-xl p-4 flex gap-4">
                 <div className="w-[100px] h-[56px] rounded-lg shimmer shrink-0" />
@@ -81,22 +121,27 @@ export function HistoryView({ onBack, onRedownload }: Props) {
               </div>
             ))}
           </div>
-        ) : history.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center text-center animate-fade-in">
             <div className="w-16 h-16 rounded-2xl glass-card flex items-center justify-center mb-4">
               <Clock className="w-7 h-7 text-tertiary" />
             </div>
-            <h3 className="text-[15px] font-medium text-primary mb-2">No downloads yet</h3>
+            <h3 className="text-[15px] font-medium text-primary mb-2">
+              {activeTab === "downloads" ? "No downloads yet" : "No conversions yet"}
+            </h3>
             <p className="text-[13px] text-tertiary max-w-[260px]">
-              Your download history will appear here after you download media.
+              {activeTab === "downloads"
+                ? "Your download history will appear here after you download media."
+                : "Your conversion history will appear here after you convert files."}
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3 pb-8">
-            {history.map((entry) => (
+          <div className="flex flex-col gap-3 pt-4 pb-8">
+            {filtered.map((entry) => (
               <HistoryCard
                 key={entry.id}
                 entry={entry}
+                showRedownload={activeTab === "downloads"}
                 onRedownload={() => onRedownload(entry.url)}
               />
             ))}
@@ -107,7 +152,7 @@ export function HistoryView({ onBack, onRedownload }: Props) {
   );
 }
 
-function HistoryCard({ entry, onRedownload }: { entry: HistoryEntry; onRedownload: () => void }) {
+function HistoryCard({ entry, showRedownload, onRedownload }: { entry: HistoryEntry; showRedownload: boolean; onRedownload: () => void }) {
   const formatBadge = entry.outputFormat?.toUpperCase() || entry.format?.toUpperCase() || "—";
 
   return (
@@ -122,7 +167,10 @@ function HistoryCard({ entry, onRedownload }: { entry: HistoryEntry; onRedownloa
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Download className="w-5 h-5 text-tertiary" />
+            {entry.format === "convert"
+              ? <ArrowLeftRight className="w-5 h-5 text-tertiary" />
+              : <Download className="w-5 h-5 text-tertiary" />
+            }
           </div>
         )}
       </div>
@@ -130,13 +178,13 @@ function HistoryCard({ entry, onRedownload }: { entry: HistoryEntry; onRedownloa
       {/* Info */}
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div>
-          <h4 className="text-[13px] font-medium text-primary truncate leading-snug" title={entry.title}>
-            {entry.title || entry.filename}
+          <h4 className="text-[13px] font-medium text-primary truncate leading-snug" title={entry.format === "convert" ? entry.filename : entry.title}>
+            {entry.format === "convert" ? entry.filename : (entry.title || entry.filename)}
           </h4>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className={cn(
               "text-[10px] font-semibold px-1.5 py-0.5 rounded",
-              entry.format === "audio"
+              entry.format === "audio" || entry.format === "convert"
                 ? "bg-accent/15 text-accent"
                 : "bg-primary/10 text-secondary"
             )}>
@@ -159,13 +207,15 @@ function HistoryCard({ entry, onRedownload }: { entry: HistoryEntry; onRedownloa
         >
           <FolderOpen size={14} />
         </button>
-        <button
-          onClick={onRedownload}
-          className="p-2 rounded-md hover:bg-accent/15 text-tertiary hover:text-accent transition-colors"
-          title="Re-download"
-        >
-          <RotateCcw size={14} />
-        </button>
+        {showRedownload && (
+          <button
+            onClick={onRedownload}
+            className="p-2 rounded-md hover:bg-accent/15 text-tertiary hover:text-accent transition-colors"
+            title="Re-download"
+          >
+            <RotateCcw size={14} />
+          </button>
+        )}
       </div>
     </div>
   );
