@@ -1,10 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Rust build
+src-tauri/target/
+
+# Sidecar binaries (downloaded, not committed)
+src-tauri/binaries/*.exe
+src-tauri/binaries/*-darwin
+src-tauri/binaries/*-linux
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Legacy (kept for cleanup)
 venv/
 downloads/
 __pycache__/
 *.pyc
-assets/*.mov
-.DS_Store
-.env
-.env.local
-.env.production
-.env.development
+
+# Prototype / design reference
+Create Design Element/
+
+# Screenshots
+*.png
+!src-tauri/icons/**/*.png
+
+# Debug / local tools
+scripts/diagnose.ps1
+debug.log
+.claude/

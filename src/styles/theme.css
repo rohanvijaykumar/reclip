@@ -1,0 +1,231 @@
+/* ===== DUAL THEME: Dark / Light + Glassmorphic Design ===== */
+
+:root,
+[data-theme="dark"] {
+  --theme-base: #0A0A0A;
+  --theme-raised: rgba(22, 22, 22, 0.7);
+  --theme-hover: #242424;
+  --theme-active: #2E2E2E;
+  --theme-subtle: rgba(255, 255, 255, 0.08);
+  --theme-focus: #3D3D3D;
+  --theme-primary: #E8E8E8;
+  --theme-secondary: #8A8A8A;
+  --theme-tertiary: #5A5A5A;
+  --theme-accent: #E85D2A;
+  --theme-accent-hover: #F06E3D;
+  --theme-accent-text: #FFFFFF;
+  --theme-success: #00FF6A;
+  --theme-error: #EF6461;
+  --theme-progress-track: #1F1F1F;
+  --theme-glass-bg: rgba(18, 18, 18, 0.65);
+  --theme-glass-border: rgba(255, 255, 255, 0.07);
+  --theme-glass-glow: rgba(232, 93, 42, 0.15);
+  --theme-noise-opacity: 0.02;
+  --theme-scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --theme-scrollbar-hover: rgba(255, 255, 255, 0.18);
+  --theme-body-bg: #050505;
+  --theme-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] {
+  --theme-base: #F7F7F8;
+  --theme-raised: rgba(255, 255, 255, 0.75);
+  --theme-hover: #EBEBED;
+  --theme-active: #DDDDE0;
+  --theme-subtle: rgba(0, 0, 0, 0.06);
+  --theme-focus: #C8C8CC;
+  --theme-primary: #1A1A1A;
+  --theme-secondary: #6B6B6B;
+  --theme-tertiary: #9A9A9A;
+  --theme-accent: #E85D2A;
+  --theme-accent-hover: #D14E1E;
+  --theme-accent-text: #FFFFFF;
+  --theme-success: #10B981;
+  --theme-error: #EF4444;
+  --theme-progress-track: #E5E5E8;
+  --theme-glass-bg: rgba(255, 255, 255, 0.65);
+  --theme-glass-border: rgba(0, 0, 0, 0.06);
+  --theme-glass-glow: rgba(232, 93, 42, 0.10);
+  --theme-noise-opacity: 0.015;
+  --theme-scrollbar-thumb: rgba(0, 0, 0, 0.12);
+  --theme-scrollbar-hover: rgba(0, 0, 0, 0.2);
+  --theme-body-bg: #EDEDED;
+  --theme-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* Tailwind v4 theme tokens → dynamic via CSS variables */
+@import "tailwindcss";
+
+@theme {
+  --color-base: var(--theme-base);
+  --color-raised: var(--theme-raised);
+  --color-hover: var(--theme-hover);
+  --color-active: var(--theme-active);
+  --color-subtle: var(--theme-subtle);
+  --color-focus: var(--theme-focus);
+  --color-primary: var(--theme-primary);
+  --color-secondary: var(--theme-secondary);
+  --color-tertiary: var(--theme-tertiary);
+  --color-accent: var(--theme-accent);
+  --color-accent-hover: var(--theme-accent-hover);
+  --color-accent-text: var(--theme-accent-text);
+  --color-success: var(--theme-success);
+  --color-error: var(--theme-error);
+  --color-progress-track: var(--theme-progress-track);
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+body {
+  background-color: var(--theme-body-bg);
+  color: var(--theme-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* ===== GLASSMORPHIC UTILITIES ===== */
+
+@layer utilities {
+  /* Glass card: semi-transparent + blur + subtle border */
+  .glass-card {
+    background: var(--theme-glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--theme-glass-border);
+    box-shadow: var(--theme-card-shadow);
+  }
+
+  /* Animated gradient border on hover */
+  .glass-border {
+    position: relative;
+    overflow: visible;
+  }
+  .glass-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      var(--theme-glass-border),
+      transparent 40%,
+      transparent 60%,
+      var(--theme-glass-border)
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+  }
+  .glass-border:hover::before {
+    opacity: 1;
+    background: linear-gradient(
+      135deg,
+      var(--theme-accent),
+      transparent 40%,
+      transparent 60%,
+      var(--theme-accent)
+    );
+  }
+
+  /* Accent glow */
+  .glow-accent {
+    box-shadow: 0 0 20px var(--theme-glass-glow),
+                0 0 40px var(--theme-glass-glow);
+  }
+
+  /* Frosted panel (Download All bar, overlays) */
+  .glass-panel {
+    background: var(--theme-glass-bg);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid var(--theme-glass-border);
+  }
+
+  /* Noise texture overlay */
+  .bg-noise {
+    position: relative;
+  }
+  .bg-noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    opacity: var(--theme-noise-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+
+  /* Shimmer loading skeleton */
+  .shimmer {
+    background: linear-gradient(90deg, var(--theme-hover) 0%, var(--theme-active) 50%, var(--theme-hover) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+}
+
+/* ===== KEYFRAME ANIMATIONS ===== */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slideUpFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-card-enter {
+  animation: slideUpFadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulseOpacity {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.animate-pulse-edge {
+  animation: pulseOpacity 2s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fadeIn 300ms ease-out forwards;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in-right {
+  animation: slideInRight 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ===== CUSTOM SCROLLBAR ===== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--theme-scrollbar-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-scrollbar-hover);
+}
