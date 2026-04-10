@@ -58,6 +58,97 @@ pub struct StatusResponse {
     pub filename: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistEntryInfo {
+    pub url: String,
+    pub title: String,
+    pub thumbnail: String,
+    pub duration: Option<f64>,
+    pub uploader: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistInfo {
+    pub title: String,
+    pub uploader: String,
+    pub thumbnail: String,
+    pub entry_count: u32,
+    pub entries: Vec<PlaylistEntryInfo>,
+}
+
+/// Detect whether a URL is a playlist.
+#[tauri::command]
+pub async fn get_playlist_info(app: AppHandle, url: String) -> Result<PlaylistInfo, String> {
+    let output = app
+        .shell()
+        .sidecar("yt-dlp")
+        .map_err(|e| format!("Failed to find yt-dlp: {}", e))?
+        .args(["--flat-playlist", "-J", &url])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let last_line = stderr.lines().last().unwrap_or("Unknown error");
+        return Err(last_line.to_string());
+    }
+
+    let info: serde_json::Value =
+        serde_json::from_slice(&output.stdout).map_err(|e| format!("Failed to parse info: {}", e))?;
+
+    // Check if this is actually a playlist (has _type: "playlist" and entries array)
+    let is_playlist = info.get("_type").and_then(|t| t.as_str()) == Some("playlist");
+    if !is_playlist {
+        return Err("NOT_A_PLAYLIST".to_string());
+    }
+
+    let entries: Vec<PlaylistEntryInfo> = info
+        .get("entries")
+        .and_then(|e| e.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|e| {
+                    let entry_url = e.get("url").and_then(|u| u.as_str())
+                        .or_else(|| e.get("webpage_url").and_then(|u| u.as_str()))
+                        .map(|u| u.to_string())?;
+                    Some(PlaylistEntryInfo {
+                        url: entry_url,
+                        title: e.get("title").and_then(|t| t.as_str()).unwrap_or("").to_string(),
+                        thumbnail: e.get("thumbnails")
+                            .and_then(|t| t.as_array())
+                            .and_then(|arr| arr.last())
+                            .and_then(|t| t.get("url"))
+                            .and_then(|u| u.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        duration: e.get("duration").and_then(|d| d.as_f64()),
+                        uploader: e.get("uploader").and_then(|u| u.as_str()).unwrap_or("").to_string(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let entry_count = entries.len() as u32;
+
+    Ok(PlaylistInfo {
+        title: info.get("title").and_then(|t| t.as_str()).unwrap_or("Playlist").to_string(),
+        uploader: info.get("uploader").and_then(|u| u.as_str()).unwrap_or("").to_string(),
+        thumbnail: info.get("thumbnails")
+            .and_then(|t| t.as_array())
+            .and_then(|arr| arr.last())
+            .and_then(|t| t.get("url"))
+            .and_then(|u| u.as_str())
+            .unwrap_or("")
+            .to_string(),
+        entry_count,
+        entries,
+    })
+}
+
 /// Fetch video metadata and available formats.
 /// Replaces POST /api/info from app.py:81-124
 #[tauri::command]

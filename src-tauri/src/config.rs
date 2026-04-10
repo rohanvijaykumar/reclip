@@ -9,6 +9,12 @@ pub struct AppConfig {
     pub default_video_quality: String,
     pub notifications_enabled: bool,
     pub theme: String,
+    #[serde(default = "default_true")]
+    pub clipboard_watch_enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for AppConfig {
@@ -18,6 +24,7 @@ impl Default for AppConfig {
             default_video_quality: "best".to_string(),
             notifications_enabled: false,
             theme: "dark".to_string(),
+            clipboard_watch_enabled: true,
         }
     }
 }

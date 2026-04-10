@@ -1,6 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { VideoInfo, ProgressPayload, CompletePayload, ErrorPayload, HistoryEntry } from "@/types";
+import type { VideoInfo, PlaylistInfo, ProgressPayload, CompletePayload, ErrorPayload, HistoryEntry } from "@/types";
+
+export async function getPlaylistInfo(url: string): Promise<PlaylistInfo> {
+  return invoke<PlaylistInfo>("get_playlist_info", { url });
+}
 
 export async function getInfo(url: string): Promise<VideoInfo> {
   return invoke<VideoInfo>("get_info", { url });

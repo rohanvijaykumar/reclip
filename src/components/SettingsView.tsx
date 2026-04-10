@@ -1,4 +1,4 @@
-import { ChevronLeft, HardDrive, LayoutGrid, Palette, Bell, Moon, Sun, Monitor, X } from "lucide-react";
+import { ChevronLeft, HardDrive, LayoutGrid, Palette, Bell, Moon, Sun, Monitor, X, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useConfig } from "@/contexts/ConfigContext";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -126,6 +126,16 @@ export function SettingsView({ onBack }: Props) {
                   </button>
                 ))}
               </div>
+            </Item>
+          </Section>
+
+          {/* Clipboard */}
+          <Section title="Clipboard" icon={<ClipboardCheck size={16} className="text-secondary" />}>
+            <Item label="Clipboard Watching" description="Automatically detect media URLs when you copy them.">
+              <ToggleSwitch
+                checked={config.clipboardWatchEnabled}
+                onChange={(v) => updateConfig({ clipboardWatchEnabled: v })}
+              />
             </Item>
           </Section>
 

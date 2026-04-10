@@ -16,6 +16,35 @@ export function fmtDur(s: number | null | undefined): string {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
+const PLAYLIST_PATTERNS = [
+  /youtube\.com\/playlist\?/i,
+  /youtube\.com\/.*[?&]list=/i,
+  /youtu\.be\/.*[?&]list=/i,
+];
+
+export function looksLikePlaylist(url: string): boolean {
+  return PLAYLIST_PATTERNS.some((p) => p.test(url));
+}
+
+const PERMANENT_ERROR_PATTERNS = [
+  "Unsupported URL",
+  "Video unavailable",
+  "Private video",
+  "This video has been removed",
+  "This video is no longer available",
+  "copyright",
+  "geo",
+  "HTTP Error 404",
+  "is not a valid URL",
+  "blocked",
+  "account associated",
+  "Sign in to confirm your age",
+];
+
+export function isPermanentError(err: string): boolean {
+  return PERMANENT_ERROR_PATTERNS.some((p) => err.includes(p));
+}
+
 export function friendlyError(err: string): string {
   if (err.includes("Unsupported URL")) return "This URL is not supported";
   if (err.includes("Video unavailable")) return "Video is unavailable or private";

@@ -28,6 +28,7 @@ fn main() {
         .manage(JobStore::default())
         .manage(ConvertJobStore::default())
         .invoke_handler(tauri::generate_handler![
+            commands::download::get_playlist_info,
             commands::download::get_info,
             commands::download::start_download,
             commands::download::get_status,

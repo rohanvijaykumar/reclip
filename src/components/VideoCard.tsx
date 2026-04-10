@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Loader2, Download, CheckCircle2, FolderOpen, Pencil } from "lucide-react";
+import { AlertTriangle, Loader2, Download, CheckCircle2, FolderOpen, Pencil, TriangleAlert, Clock, RotateCcw, CheckSquare, Square } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { fmtDur, friendlyError } from "@/lib/utils";
 import { ImageWithFallback } from "./ImageWithFallback";
@@ -15,15 +15,34 @@ interface Props {
   onDownload: () => void;
   onPickFormat: (formatId: string) => void;
   onRename: (name: string) => void;
+  onDismissDuplicate?: () => void;
+  onSkip?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  onToggleCheck?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
 }
 
-export function VideoCard({ data, index, formatLabel, category, onDownload, onPickFormat, onRename }: Props) {
+export function VideoCard({
+  data, index, formatLabel, category,
+  onDownload, onPickFormat, onRename, onDismissDuplicate, onSkip,
+  onContextMenu, onToggleCheck, draggable, onDragStart, onDragOver, onDrop,
+}: Props) {
+
+  const handleContext = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onContextMenu?.(e);
+  };
+
   // Skeleton / loading state
   if (data.status === "loading") {
     return (
       <div
         className="glass-card rounded-xl p-4 flex gap-5 animate-card-enter opacity-0"
         style={{ animationDelay: `${index * 100}ms` }}
+        onContextMenu={handleContext}
       >
         <div className="w-[140px] h-[80px] rounded-lg shrink-0 shimmer" />
         <div className="flex-1 flex flex-col justify-between py-1">
@@ -46,6 +65,7 @@ export function VideoCard({ data, index, formatLabel, category, onDownload, onPi
       <div
         className="glass-card border-error/20 rounded-xl p-4 flex gap-5 animate-card-enter opacity-0 overflow-hidden relative"
         style={{ animationDelay: `${index * 80}ms` }}
+        onContextMenu={handleContext}
       >
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-error" />
         <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-active flex items-center justify-center">
@@ -72,6 +92,7 @@ export function VideoCard({ data, index, formatLabel, category, onDownload, onPi
       <div
         className="glass-card border-error/20 rounded-xl p-4 flex gap-5 animate-card-enter opacity-0 overflow-hidden relative"
         style={{ animationDelay: `${index * 80}ms` }}
+        onContextMenu={handleContext}
       >
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-error" />
         <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-active">
@@ -98,19 +119,113 @@ export function VideoCard({ data, index, formatLabel, category, onDownload, onPi
     );
   }
 
+  // Retrying state
+  if (data.status === "retrying") {
+    return (
+      <div
+        className="glass-card rounded-xl p-4 flex gap-5 animate-card-enter opacity-0 overflow-hidden relative"
+        style={{ animationDelay: `${index * 80}ms` }}
+        onContextMenu={handleContext}
+      >
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-warning" />
+        <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-raised ring-1 ring-black/10">
+          <ImageWithFallback src={data.thumbnail || ""} alt={data.title || ""} className="w-full h-full object-cover opacity-50" />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <RotateCcw className="w-5 h-5 text-warning animate-spin" style={{ animationDuration: "2s" }} />
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col justify-center py-0.5">
+          <h3 className="font-semibold text-[15px] leading-snug tracking-tight text-primary line-clamp-1 mb-1">
+            {data.customFilename || data.title || "Untitled"}
+          </h3>
+          <div className="flex items-center gap-2 text-[12px] text-warning font-medium">
+            <Clock size={14} />
+            Retrying in {data.retryingIn}s...
+            <span className="text-tertiary font-normal">(attempt {(data.retryCount ?? 0)}/3)</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Queued state
+  if (data.status === "queued") {
+    return (
+      <div
+        className={cn(
+          "glass-card rounded-xl p-4 flex gap-5 animate-card-enter opacity-0 overflow-hidden relative",
+          draggable && "cursor-grab active:cursor-grabbing"
+        )}
+        style={{ animationDelay: `${index * 80}ms` }}
+        onContextMenu={handleContext}
+        draggable={draggable}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+      >
+        <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-raised ring-1 ring-black/10">
+          <ImageWithFallback src={data.thumbnail || ""} alt={data.title || ""} className="w-full h-full object-cover opacity-60" />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <div className="bg-base/80 backdrop-blur-sm rounded-md px-2.5 py-1 text-[11px] font-bold text-secondary tabular-nums">
+              #{data.queuePosition ?? "?"}
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col justify-center py-0.5">
+          <h3 className="font-semibold text-[15px] leading-snug tracking-tight text-primary line-clamp-1 mb-1">
+            {data.customFilename || data.title || "Untitled"}
+          </h3>
+          <div className="text-[12px] text-secondary flex items-center gap-1.5">
+            <Clock size={12} className="text-tertiary" />
+            Queued #{data.queuePosition ?? "?"}
+            <span className="w-1 h-1 rounded-full bg-tertiary inline-block" />
+            {formatLabel}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isDownloading = data.status === "downloading";
   const isDone = data.status === "done";
+  const hasDuplicate = data.status === "ready" && data.duplicateInfo;
+  const isPlaylistItem = !!data.playlistId;
+  const isChecked = data.checked !== false;
 
   return (
     <div
       className={cn(
-        "glass-card glass-border rounded-xl p-4 flex sm:flex-row flex-col gap-5 transition-all animate-card-enter opacity-0 relative group",
-        isDone && "border-success/20"
+        "glass-card glass-border rounded-xl p-4 flex sm:flex-row flex-col gap-5 transition-all animate-card-enter opacity-0 relative group overflow-hidden",
+        isDone && "border-success/20",
+        isPlaylistItem && !isChecked && data.status === "ready" && "opacity-50"
       )}
       style={{ animationDelay: `${index * 80}ms` }}
+      onContextMenu={handleContext}
     >
+      {/* Duplicate warning left border */}
+      {hasDuplicate && (
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-warning" />
+      )}
+
+      {/* Playlist checkbox */}
+      {isPlaylistItem && data.status === "ready" && (
+        <button
+          onClick={onToggleCheck}
+          className="absolute top-3 left-3 z-10 p-0.5"
+        >
+          {isChecked ? (
+            <CheckSquare size={16} className="text-accent" />
+          ) : (
+            <Square size={16} className="text-tertiary hover:text-secondary" />
+          )}
+        </button>
+      )}
+
       {/* Thumbnail */}
-      <div className="sm:w-[140px] w-full sm:h-[80px] h-[160px] shrink-0 relative rounded-lg overflow-hidden bg-raised ring-1 ring-black/10">
+      <div className={cn(
+        "sm:w-[140px] w-full sm:h-[80px] h-[160px] shrink-0 relative rounded-lg overflow-hidden bg-raised ring-1 ring-black/10",
+        isPlaylistItem && "sm:ml-4"
+      )}>
         <ImageWithFallback
           src={data.thumbnail || ""}
           alt={data.title || ""}
@@ -149,6 +264,33 @@ export function VideoCard({ data, index, formatLabel, category, onDownload, onPi
           </div>
         </div>
 
+        {/* Duplicate warning banner */}
+        {hasDuplicate && data.duplicateInfo && (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-warning/10 border border-warning/20 px-3 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <TriangleAlert size={14} className="text-warning shrink-0" />
+              <span className="text-[11px] text-secondary leading-snug truncate">
+                Previously downloaded on {data.duplicateInfo.date} as {data.duplicateInfo.quality} {data.duplicateInfo.format.toUpperCase()}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={onDismissDuplicate}
+                className="text-[11px] font-medium text-accent hover:text-accent-hover transition-colors"
+              >
+                Download again
+              </button>
+              <span className="w-px h-3 bg-subtle" />
+              <button
+                onClick={onSkip}
+                className="text-[11px] font-medium text-tertiary hover:text-secondary transition-colors"
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Ready state */}
         {data.status === "ready" && (
           <div className="flex justify-between items-end mt-4 gap-4 flex-wrap">
@@ -182,7 +324,8 @@ export function VideoCard({ data, index, formatLabel, category, onDownload, onPi
             )}
             <button
               onClick={onDownload}
-              className="h-[32px] px-4 glass-card hover:border-focus text-primary font-medium text-[12px] rounded-lg transition-all flex items-center gap-1.5 shrink-0 hover:shadow active:scale-[0.98]"
+              disabled={isPlaylistItem && !isChecked}
+              className="h-[32px] px-4 glass-card hover:border-focus text-primary font-medium text-[12px] rounded-lg transition-all flex items-center gap-1.5 shrink-0 hover:shadow active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none"
             >
               <Download className="w-3.5 h-3.5" /> Download
             </button>

@@ -7,6 +7,7 @@ const DEFAULT_CONFIG: AppConfig = {
   defaultVideoQuality: "best",
   notificationsEnabled: false,
   theme: "dark",
+  clipboardWatchEnabled: true,
 };
 
 interface ConfigContextValue {

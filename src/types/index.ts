@@ -12,13 +12,37 @@ export interface VideoInfo {
   formats: FormatOption[];
 }
 
+export interface PlaylistEntry {
+  url: string;
+  title: string;
+  thumbnail: string;
+  duration: number | null;
+  uploader: string;
+}
+
+export interface PlaylistInfo {
+  title: string;
+  uploader: string;
+  thumbnail: string;
+  entryCount: number;
+  entries: PlaylistEntry[];
+}
+
 export interface StatusResponse {
   status: string;
   error: string | null;
   filename: string | null;
 }
 
-export type CardStatus = "loading" | "ready" | "downloading" | "done" | "error" | "info-error";
+export type CardStatus =
+  | "loading"
+  | "ready"
+  | "queued"
+  | "downloading"
+  | "done"
+  | "error"
+  | "info-error"
+  | "retrying";
 
 export type FormatCategory = "video" | "audio";
 export type VideoFormat = "mp4" | "mkv" | "webm" | "mov";
@@ -41,6 +65,12 @@ export const AUDIO_FORMATS: { id: AudioFormat; label: string; ytdlpName: string 
   { id: "opus", label: "OPUS", ytdlpName: "opus" },
 ];
 
+export interface DuplicateInfo {
+  date: string;
+  quality: string;
+  format: string;
+}
+
 export interface CardData {
   url: string;
   status: CardStatus;
@@ -59,6 +89,25 @@ export interface CardData {
   saved?: boolean;
   savedName?: string;
   error?: string;
+  duplicateInfo?: DuplicateInfo | null;
+  skipDuplicate?: boolean;
+  // Queue
+  queuePosition?: number;
+  // Retry
+  retryCount?: number;
+  retryingIn?: number; // seconds remaining on countdown
+  // Playlist
+  playlistId?: string;
+  checked?: boolean;
+}
+
+export interface PlaylistHeaderData {
+  id: string;
+  title: string;
+  uploader: string;
+  thumbnail: string;
+  videoCount: number;
+  totalDuration: number;
 }
 
 export interface ProgressPayload {
@@ -84,6 +133,7 @@ export interface AppConfig {
   defaultVideoQuality: string;
   notificationsEnabled: boolean;
   theme: "dark" | "light" | "system";
+  clipboardWatchEnabled: boolean;
 }
 
 export interface HistoryEntry {
@@ -98,4 +148,13 @@ export interface HistoryEntry {
   outputFormat: string;
   quality: string;
   timestamp: number;
+}
+
+export interface ContextMenuItem {
+  label: string;
+  icon?: React.ReactNode;
+  action: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+  separator?: boolean;
 }
