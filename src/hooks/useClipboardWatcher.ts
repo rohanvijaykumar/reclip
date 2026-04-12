@@ -1,19 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-
-const PLATFORM_PATTERNS: { name: string; pattern: RegExp }[] = [
-  { name: "YouTube", pattern: /(?:youtube\.com\/(?:watch|shorts|live|embed)|youtu\.be\/)/i },
-  { name: "TikTok", pattern: /tiktok\.com\//i },
-  { name: "Instagram", pattern: /instagram\.com\/(?:p|reel|tv)\//i },
-  { name: "X", pattern: /(?:twitter\.com|x\.com)\/\w+\/status\//i },
-  { name: "Reddit", pattern: /(?:reddit\.com|redd\.it)\//i },
-  { name: "SoundCloud", pattern: /soundcloud\.com\//i },
-  { name: "Vimeo", pattern: /vimeo\.com\/\d/i },
-  { name: "Facebook", pattern: /(?:facebook\.com|fb\.watch)\/.*(?:video|watch|reel)/i },
-  { name: "Twitch", pattern: /(?:twitch\.tv\/(?:videos\/|.*\/clip\/|\w+)|clips\.twitch\.tv\/)/i },
-  { name: "Dailymotion", pattern: /dailymotion\.com\/video\//i },
-  { name: "Bilibili", pattern: /bilibili\.com\/video\//i },
-  { name: "Pinterest", pattern: /pinterest\.com\/pin\//i },
-];
+import { detectPlatformFromUrl } from "@/lib/utils";
 
 export interface ClipboardDetection {
   url: string;
@@ -23,14 +9,10 @@ export interface ClipboardDetection {
 function detectPlatform(text: string): ClipboardDetection | null {
   const trimmed = text.trim();
   if (!trimmed.startsWith("http")) return null;
-  // Must be a single URL (no whitespace)
   if (/\s/.test(trimmed)) return null;
 
-  for (const { name, pattern } of PLATFORM_PATTERNS) {
-    if (pattern.test(trimmed)) {
-      return { url: trimmed, platform: name };
-    }
-  }
+  const platform = detectPlatformFromUrl(trimmed);
+  if (platform) return { url: trimmed, platform };
   return null;
 }
 
@@ -66,14 +48,12 @@ export function useClipboardWatcher(enabled: boolean, currentTextareaValue: stri
 
         const result = detectPlatform(text);
         if (!result) return;
-        // Don't show if already in the textarea
         if (currentTextareaValue.includes(result.url)) return;
-        // Don't show if user already dismissed this exact URL
         if (result.url === dismissedUrlRef.current) return;
 
         setDetection(result);
       } catch {
-        // Clipboard read can fail if window not focused — ignore
+        // Clipboard read can fail if window not focused
       }
     };
 

@@ -2,6 +2,7 @@ export interface FormatOption {
   id: string;
   label: string;
   height: number;
+  filesize?: number | null;
 }
 
 export interface VideoInfo {
@@ -136,6 +137,8 @@ export interface AppConfig {
   clipboardWatchEnabled: boolean;
   hwAccelEnabled: boolean;
   detectedGpu: string | null;
+  filenameTemplate: string;
+  folderRules: Record<string, string>;
 }
 
 export interface GpuDetectionResult {

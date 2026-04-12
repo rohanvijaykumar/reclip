@@ -13,6 +13,39 @@ use converter::ConvertJobStore;
 use jobs::JobStore;
 use tauri::Manager;
 
+/// Purge all files from the temp download staging directory on startup.
+/// Any files here are orphans from previous sessions (crashes, force-closes).
+/// Active downloads only exist within a single app session.
+fn cleanup_staging_dir(app: &tauri::AppHandle) {
+    let Ok(staging) = app.path().app_data_dir().map(|d| d.join("downloads")) else {
+        return;
+    };
+    let Ok(entries) = std::fs::read_dir(&staging) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let _ = std::fs::remove_file(entry.path());
+    }
+}
+
+/// Clear WebView2 HTTP/code/GPU caches that accumulate over time.
+/// These are safe to remove — the browser engine recreates them on demand.
+/// We keep Local Storage and session data intact.
+fn cleanup_webview_cache(app: &tauri::AppHandle) {
+    let Ok(local_data) = app.path().app_local_data_dir() else {
+        return;
+    };
+    // WebView2 on Windows stores data under EBWebView/Default/
+    let webview_default = local_data.join("EBWebView").join("Default");
+    let cache_dirs = ["Cache", "Code Cache", "GPUCache"];
+    for dir_name in &cache_dirs {
+        let dir = webview_default.join(dir_name);
+        if dir.is_dir() {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         // Single instance MUST be first plugin registered
@@ -25,6 +58,11 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .setup(|app| {
+            cleanup_staging_dir(app.handle());
+            cleanup_webview_cache(app.handle());
+            Ok(())
+        })
         .manage(JobStore::default())
         .manage(ConvertJobStore::default())
         .invoke_handler(tauri::generate_handler![
@@ -33,6 +71,7 @@ fn main() {
             commands::download::start_download,
             commands::download::get_status,
             commands::download::save_file,
+            commands::download::cleanup_download,
             commands::config::get_config,
             commands::config::save_config,
             commands::config::open_download_folder,

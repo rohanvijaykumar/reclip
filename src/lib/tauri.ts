@@ -16,13 +16,19 @@ export async function startDownload(
   formatId: string | null,
   title: string,
   outputFormat: string,
-  thumbnail: string | null
+  thumbnail: string | null,
+  platform: string | null,
+  uploader: string | null,
 ): Promise<string> {
-  return invoke<string>("start_download", { url, format, formatId, title, outputFormat, thumbnail });
+  return invoke<string>("start_download", { url, format, formatId, title, outputFormat, thumbnail, platform, uploader });
 }
 
 export async function saveFile(jobId: string): Promise<string> {
   return invoke<string>("save_file", { jobId });
+}
+
+export async function cleanupDownload(jobId: string): Promise<void> {
+  return invoke("cleanup_download", { jobId });
 }
 
 export async function openDownloadFolder(): Promise<void> {

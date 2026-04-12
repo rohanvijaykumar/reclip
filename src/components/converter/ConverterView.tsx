@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Zap, X } from "lucide-react";
+import { Zap, X, Film, Music } from "lucide-react";
 import { useConfig } from "@/contexts/ConfigContext";
 import { useConverter } from "@/hooks/useConverter";
 import { FileInput } from "./FileInput";
 import { ConversionSettings } from "./ConversionSettings";
 import { ConversionCard } from "./ConversionCard";
+import { AudioWaveform } from "@/components/AudioWaveform";
+import { formatDuration, formatFileSize } from "@/types/converter";
 
 export function ConverterView() {
   const { config } = useConfig();
@@ -55,29 +57,50 @@ export function ConverterView() {
         <div className="flex flex-col gap-2 mb-4">
           <p className="text-[11px] font-medium text-tertiary uppercase tracking-wider">Files to convert ({readyCards.length})</p>
           <div className="flex flex-col gap-1.5">
-            {readyCards.map((card) => (
-              <div
-                key={card.id}
-                onClick={() => setSelectedCardId(card.id)}
-                className={`glass-card rounded-lg px-3 py-2 flex items-center justify-between transition-all cursor-pointer ${
-                  settingsCard?.id === card.id ? "ring-1 ring-accent border-accent" : "hover:bg-hover/30"
-                }`}
-              >
-                <span className="text-[12px] font-medium text-primary truncate">{card.fileName}</span>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent">
-                    {card.settings.outputFormat.toUpperCase()}
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); removeCard(card.id); }}
-                    className="p-1 rounded-md hover:bg-hover text-tertiary hover:text-error transition-colors"
-                    title="Remove"
-                  >
-                    <X size={12} />
-                  </button>
+            {readyCards.map((card) => {
+              const info = card.mediaInfo;
+              const isAudioOnly = info && !info.hasVideo;
+              return (
+                <div
+                  key={card.id}
+                  onClick={() => setSelectedCardId(card.id)}
+                  className={`glass-card rounded-lg px-3 py-2 flex items-center gap-3 transition-all cursor-pointer ${
+                    settingsCard?.id === card.id ? "ring-1 ring-accent border-accent" : "hover:bg-hover/30"
+                  }`}
+                >
+                  {/* Mini preview */}
+                  <div className="w-8 h-8 rounded-md overflow-hidden bg-raised ring-1 ring-black/10 shrink-0 flex items-center justify-center">
+                    {isAudioOnly ? (
+                      <AudioWaveform seed={card.filePath + card.fileName} width={32} height={32} />
+                    ) : info?.hasVideo ? (
+                      <Film size={14} className="text-tertiary" />
+                    ) : (
+                      <Music size={14} className="text-tertiary" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[12px] font-medium text-primary truncate block">{card.fileName}</span>
+                    {info && (
+                      <span className="text-[10px] text-tertiary">
+                        {info.durationSecs > 0 ? formatDuration(info.durationSecs) : ""}{info.fileSize > 0 ? ` · ${formatFileSize(info.fileSize)}` : ""}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent">
+                      {card.settings.outputFormat.toUpperCase()}
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeCard(card.id); }}
+                      className="p-1 rounded-md hover:bg-hover text-tertiary hover:text-error transition-colors"
+                      title="Remove"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -85,18 +108,49 @@ export function ConverterView() {
       {/* Settings for selected ready card */}
       {settingsCard && settingsCard.mediaInfo && (
         <>
-          {/* Single file header with remove option */}
-          {readyCards.length === 1 && (
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[13px] font-medium text-primary truncate">{settingsCard.fileName}</span>
-              <button
-                onClick={() => removeCard(settingsCard.id)}
-                className="flex items-center gap-1 px-2 py-1 text-[11px] text-tertiary hover:text-error rounded-md hover:bg-error/10 transition-colors"
-              >
-                <X size={12} /> Remove
-              </button>
-            </div>
-          )}
+          {/* Single file header with preview and remove option */}
+          {readyCards.length === 1 && (() => {
+            const info = settingsCard.mediaInfo;
+            const isAudioOnly = info && !info.hasVideo;
+            return (
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-raised ring-1 ring-black/10 shrink-0 flex items-center justify-center">
+                  {isAudioOnly ? (
+                    <AudioWaveform seed={settingsCard.filePath + settingsCard.fileName} width={48} height={48} />
+                  ) : info?.hasVideo ? (
+                    <div className="w-full h-full bg-gradient-to-br from-hover to-active flex items-center justify-center relative">
+                      <Film size={18} className="text-tertiary" />
+                      {info.height && (
+                        <span className="absolute bottom-0.5 right-0.5 bg-black/70 text-white font-bold text-[6px] px-0.5 rounded">{info.height}p</span>
+                      )}
+                    </div>
+                  ) : (
+                    <Music size={18} className="text-tertiary" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[13px] font-medium text-primary truncate block">{settingsCard.fileName}</span>
+                  {info && (
+                    <span className="text-[11px] text-tertiary">
+                      {[
+                        info.hasVideo && info.width && info.height ? `${info.width}x${info.height}` : null,
+                        info.hasVideo && info.videoCodec ? info.videoCodec.toUpperCase() : null,
+                        info.hasAudio && info.audioCodec ? info.audioCodec.toUpperCase() : null,
+                        info.durationSecs > 0 ? formatDuration(info.durationSecs) : null,
+                        info.fileSize > 0 ? formatFileSize(info.fileSize) : null,
+                      ].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => removeCard(settingsCard.id)}
+                  className="flex items-center gap-1 px-2 py-1 text-[11px] text-tertiary hover:text-error rounded-md hover:bg-error/10 transition-colors shrink-0"
+                >
+                  <X size={12} /> Remove
+                </button>
+              </div>
+            );
+          })()}
           <ConversionSettings
             settings={settingsCard.settings}
             mediaInfo={settingsCard.mediaInfo}

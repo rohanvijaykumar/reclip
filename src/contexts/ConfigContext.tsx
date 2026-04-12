@@ -10,6 +10,8 @@ const DEFAULT_CONFIG: AppConfig = {
   clipboardWatchEnabled: true,
   hwAccelEnabled: true,
   detectedGpu: null,
+  filenameTemplate: "{title}",
+  folderRules: {},
 };
 
 interface ConfigContextValue {

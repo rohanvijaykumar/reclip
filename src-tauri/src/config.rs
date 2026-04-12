@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
@@ -15,6 +16,14 @@ pub struct AppConfig {
     pub hw_accel_enabled: bool,
     #[serde(default)]
     pub detected_gpu: Option<String>,
+    #[serde(default = "default_filename_template")]
+    pub filename_template: String,
+    #[serde(default)]
+    pub folder_rules: HashMap<String, String>,
+}
+
+fn default_filename_template() -> String {
+    "{title}".to_string()
 }
 
 fn default_true() -> bool {
@@ -31,6 +40,8 @@ impl Default for AppConfig {
             clipboard_watch_enabled: true,
             hw_accel_enabled: true,
             detected_gpu: None,
+            filename_template: default_filename_template(),
+            folder_rules: HashMap::new(),
         }
     }
 }

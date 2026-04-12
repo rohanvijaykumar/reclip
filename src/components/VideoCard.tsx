@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AlertTriangle, Loader2, Download, CheckCircle2, FolderOpen, Pencil, TriangleAlert, Clock, RotateCcw, CheckSquare, Square } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { fmtDur, friendlyError } from "@/lib/utils";
+import { fmtDur, fmtSize, friendlyError, detectPlatformFromUrl } from "@/lib/utils";
 import { ImageWithFallback } from "./ImageWithFallback";
+import { PlatformIcon } from "./PlatformIcon";
+import { AudioWaveform } from "./AudioWaveform";
 import { QualityChip } from "./QualityChip";
 import * as tauri from "@/lib/tauri";
 import type { CardData, FormatCategory } from "@/types";
@@ -35,6 +37,9 @@ export function VideoCard({
     e.preventDefault();
     onContextMenu?.(e);
   };
+
+  const platform = useMemo(() => detectPlatformFromUrl(data.url), [data.url]);
+  const isAudio = category === "audio";
 
   // Skeleton / loading state
   if (data.status === "loading") {
@@ -97,6 +102,11 @@ export function VideoCard({
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-error" />
         <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-active">
           <ImageWithFallback src={data.thumbnail || ""} alt="thumbnail" className="w-full h-full object-cover opacity-40 grayscale" />
+          {platform && (
+            <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/10">
+              <PlatformIcon platform={platform} size={12} />
+            </div>
+          )}
         </div>
         <div className="flex-1 flex flex-col justify-center py-1">
           <div className="flex items-center gap-2 mb-1.5">
@@ -129,7 +139,16 @@ export function VideoCard({
       >
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-warning" />
         <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-raised ring-1 ring-black/10">
-          <ImageWithFallback src={data.thumbnail || ""} alt={data.title || ""} className="w-full h-full object-cover opacity-50" />
+          {isAudio ? (
+            <AudioWaveform seed={data.url + (data.title || "")} width={140} height={80} className="w-full h-full opacity-50" />
+          ) : (
+            <ImageWithFallback src={data.thumbnail || ""} alt={data.title || ""} className="w-full h-full object-cover opacity-50" />
+          )}
+          {platform && (
+            <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/10">
+              <PlatformIcon platform={platform} size={12} />
+            </div>
+          )}
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <RotateCcw className="w-5 h-5 text-warning animate-spin" style={{ animationDuration: "2s" }} />
           </div>
@@ -164,7 +183,16 @@ export function VideoCard({
         onDrop={onDrop}
       >
         <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-raised ring-1 ring-black/10">
-          <ImageWithFallback src={data.thumbnail || ""} alt={data.title || ""} className="w-full h-full object-cover opacity-60" />
+          {isAudio ? (
+            <AudioWaveform seed={data.url + (data.title || "")} width={140} height={80} className="w-full h-full opacity-60" />
+          ) : (
+            <ImageWithFallback src={data.thumbnail || ""} alt={data.title || ""} className="w-full h-full object-cover opacity-60" />
+          )}
+          {platform && (
+            <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/10">
+              <PlatformIcon platform={platform} size={12} />
+            </div>
+          )}
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <div className="bg-base/80 backdrop-blur-sm rounded-md px-2.5 py-1 text-[11px] font-bold text-secondary tabular-nums">
               #{data.queuePosition ?? "?"}
@@ -226,11 +254,21 @@ export function VideoCard({
         "sm:w-[140px] w-full sm:h-[80px] h-[160px] shrink-0 relative rounded-lg overflow-hidden bg-raised ring-1 ring-black/10",
         isPlaylistItem && "sm:ml-4"
       )}>
-        <ImageWithFallback
-          src={data.thumbnail || ""}
-          alt={data.title || ""}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-        />
+        {isAudio && !isDownloading && !isDone ? (
+          <AudioWaveform seed={data.url + (data.title || "")} width={140} height={80} className="w-full h-full" />
+        ) : (
+          <ImageWithFallback
+            src={data.thumbnail || ""}
+            alt={data.title || ""}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        )}
+        {/* Platform badge */}
+        {platform && (
+          <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-md bg-black/60 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/10">
+            <PlatformIcon platform={platform} size={12} />
+          </div>
+        )}
         {data.duration != null && (
           <div className="absolute bottom-1.5 right-1.5 bg-black/70 backdrop-blur-md text-white font-medium text-[10px] px-2 py-0.5 rounded-md">
             {fmtDur(data.duration)}
@@ -302,6 +340,7 @@ export function VideoCard({
                     label={f.label}
                     selected={f.id === data.selectedFormatId}
                     onClick={() => onPickFormat(f.id)}
+                    size={fmtSize(f.filesize)}
                   />
                 ))}
               </div>

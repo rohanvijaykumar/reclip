@@ -2,11 +2,35 @@ use crate::jobs::{Job, JobStatus, JobStore};
 use crate::history::{self, HistoryEntry};
 use serde::Serialize;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
+
+/// Remove all temp files for a given job ID from the staging directory.
+/// Matches files like `{job_id}.ext`, `{job_id}.f303.part`, `{job_id}.mp4.temp`, etc.
+fn cleanup_temp_files(download_dir: &Path, job_id: &str) {
+    let pattern = download_dir.join(format!("{}.*", job_id));
+    if let Ok(paths) = glob::glob(&pattern.to_string_lossy()) {
+        for entry in paths.flatten() {
+            let _ = std::fs::remove_file(entry);
+        }
+    }
+}
+
+/// Clean up all temp files in the staging directory for a specific job.
+/// Called from the frontend when a user cancels or removes a download card.
+#[tauri::command]
+pub async fn cleanup_download(app: AppHandle, job_id: String) -> Result<(), String> {
+    let download_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?
+        .join("downloads");
+    cleanup_temp_files(&download_dir, &job_id);
+    Ok(())
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +38,7 @@ pub struct FormatOption {
     pub id: String,
     pub label: String,
     pub height: u32,
+    pub filesize: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -85,7 +110,7 @@ pub async fn get_playlist_info(app: AppHandle, url: String) -> Result<PlaylistIn
         .shell()
         .sidecar("yt-dlp")
         .map_err(|e| format!("Failed to find yt-dlp: {}", e))?
-        .args(["--flat-playlist", "-J", &url])
+        .args(["--flat-playlist", "--no-warnings", "--no-check-certificates", "-J", &url])
         .output()
         .await
         .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
@@ -157,7 +182,7 @@ pub async fn get_info(app: AppHandle, url: String) -> Result<VideoInfo, String> 
         .shell()
         .sidecar("yt-dlp")
         .map_err(|e| format!("Failed to find yt-dlp: {}", e))?
-        .args(["--no-playlist", "-j", &url])
+        .args(["--no-playlist", "--no-warnings", "--no-check-certificates", "-j", &url])
         .output()
         .await
         .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
@@ -173,37 +198,57 @@ pub async fn get_info(app: AppHandle, url: String) -> Result<VideoInfo, String> 
 
     // Deduplicate formats by height, keeping the best bitrate per resolution
     // (ports app.py:97-112)
-    let mut best_by_height: HashMap<u32, (String, f64)> = HashMap::new();
+    // Track best format per height: (format_id, tbr, filesize)
+    let mut best_by_height: HashMap<u32, (String, f64, Option<u64>)> = HashMap::new();
+    // Also track total audio size to add to video estimates
+    let mut best_audio_size: Option<u64> = None;
 
     if let Some(formats) = info.get("formats").and_then(|f| f.as_array()) {
         for f in formats {
+            let vcodec = f.get("vcodec").and_then(|v| v.as_str()).unwrap_or("none");
+            let acodec = f.get("acodec").and_then(|v| v.as_str()).unwrap_or("none");
+
+            // Track best audio stream size for combined estimates
+            if vcodec == "none" && acodec != "none" {
+                let asize = f.get("filesize").and_then(|s| s.as_u64())
+                    .or_else(|| f.get("filesize_approx").and_then(|s| s.as_u64()));
+                if let Some(s) = asize {
+                    best_audio_size = Some(best_audio_size.map_or(s, |prev: u64| prev.max(s)));
+                }
+            }
+
             let height = match f.get("height").and_then(|h| h.as_u64()) {
                 Some(h) if h > 0 => h as u32,
                 _ => continue,
             };
-            let vcodec = f.get("vcodec").and_then(|v| v.as_str()).unwrap_or("none");
             if vcodec == "none" {
                 continue;
             }
             let tbr = f.get("tbr").and_then(|t| t.as_f64()).unwrap_or(0.0);
             let format_id = f.get("format_id").and_then(|id| id.as_str()).unwrap_or("").to_string();
+            let filesize = f.get("filesize").and_then(|s| s.as_u64())
+                .or_else(|| f.get("filesize_approx").and_then(|s| s.as_u64()));
 
             let is_better = best_by_height
                 .get(&height)
-                .map_or(true, |(_, existing_tbr)| tbr > *existing_tbr);
+                .map_or(true, |(_, existing_tbr, _)| tbr > *existing_tbr);
 
             if is_better {
-                best_by_height.insert(height, (format_id, tbr));
+                best_by_height.insert(height, (format_id, tbr, filesize));
             }
         }
     }
 
+    let audio_size = best_audio_size.unwrap_or(0);
+
     let mut format_options: Vec<FormatOption> = best_by_height
         .into_iter()
-        .map(|(height, (id, _))| FormatOption {
+        .map(|(height, (id, _, filesize))| FormatOption {
             id,
             label: format!("{}p", height),
             height,
+            // Estimate total: video stream + best audio stream
+            filesize: filesize.map(|vs| vs + audio_size),
         })
         .collect();
 
@@ -230,6 +275,8 @@ pub async fn start_download(
     title: String,
     output_format: Option<String>,
     thumbnail: Option<String>,
+    platform: Option<String>,
+    uploader: Option<String>,
 ) -> Result<String, String> {
     let job_id = uuid::Uuid::new_v4().to_string()[..10].to_string();
 
@@ -357,13 +404,22 @@ pub async fn start_download(
         .spawn()
         .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?;
 
-    // Determine auto-save directory (reuse cfg from above)
-    let save_dir = match cfg.download_path {
-        Some(ref p) => std::path::PathBuf::from(p),
-        None => app
-            .path()
-            .download_dir()
-            .unwrap_or_else(|_| download_dir.clone()),
+    // Determine auto-save directory: check platform folder rules first, then default
+    let platform_key = platform.clone().unwrap_or_default().to_lowercase();
+    let save_dir = if let Some(folder) = cfg.folder_rules.get(&platform_key) {
+        if !folder.is_empty() {
+            std::path::PathBuf::from(folder)
+        } else {
+            match cfg.download_path {
+                Some(ref p) => std::path::PathBuf::from(p),
+                None => app.path().download_dir().unwrap_or_else(|_| download_dir.clone()),
+            }
+        }
+    } else {
+        match cfg.download_path {
+            Some(ref p) => std::path::PathBuf::from(p),
+            None => app.path().download_dir().unwrap_or_else(|_| download_dir.clone()),
+        }
     };
     std::fs::create_dir_all(&save_dir).ok();
 
@@ -373,6 +429,9 @@ pub async fn start_download(
     let dl_output_format = out_fmt.clone();
     let dl_quality = format_id.clone().unwrap_or_default();
     let dl_thumbnail = thumbnail.unwrap_or_default();
+    let dl_platform = platform.unwrap_or_default();
+    let dl_uploader = uploader.unwrap_or_default();
+    let filename_template = cfg.filename_template.clone();
     let notifications_enabled = cfg.notifications_enabled;
 
     // Spawn async task to read progress events
@@ -431,6 +490,9 @@ pub async fn start_download(
                     let success = status.code.map_or(false, |c| c == 0);
 
                     if !success {
+                        // Clean up .part files and any other temp fragments
+                        cleanup_temp_files(&dl_dir, &jid);
+
                         let err_msg = stderr_lines
                             .last()
                             .cloned()
@@ -477,22 +539,27 @@ pub async fn start_download(
                         .unwrap_or(&files[0])
                         .clone();
 
-                    // Clean up extra files
+                    // Clean up extra files (other format variants)
                     for f in &files {
                         if f != &chosen {
                             let _ = std::fs::remove_file(f);
                         }
                     }
 
-                    // Build filename: use title, sanitize for filesystem
-                    let ext = chosen
-                        .extension()
-                        .map(|e| format!(".{}", e.to_string_lossy()))
-                        .unwrap_or_default();
+                    // Also clean up any .part/.temp fragments the glob may have missed
+                    // (yt-dlp names fragments like {id}.f303.part, {id}.f251.part, etc.)
+                    cleanup_temp_files(&dl_dir, &jid);
 
-                    let filename = if !title.is_empty() {
-                        let safe: String = title
-                            .chars()
+                    // Build filename from template
+                    let ext_str = chosen
+                        .extension()
+                        .map(|e| e.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "mp4".to_string());
+
+                    let date_str = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+                    let sanitize = |s: &str| -> String {
+                        s.chars()
                             .filter(|c| !r#"\/:*?"<>|"#.contains(*c))
                             .collect::<String>()
                             .trim()
@@ -500,20 +567,32 @@ pub async fn start_download(
                             .take(200)
                             .collect::<String>()
                             .trim()
-                            .to_string();
-                        if safe.is_empty() {
-                            chosen
-                                .file_name()
-                                .map(|n| n.to_string_lossy().to_string())
-                                .unwrap_or_else(|| format!("{}{}", jid, ext))
+                            .to_string()
+                    };
+
+                    let resolved_stem = filename_template
+                        .replace("{title}", &sanitize(&title))
+                        .replace("{uploader}", &sanitize(&dl_uploader))
+                        .replace("{platform}", &sanitize(&dl_platform))
+                        .replace("{quality}", &dl_quality)
+                        .replace("{date}", &date_str)
+                        .replace("{ext}", &ext_str);
+
+                    // Remove {ext} from stem if present (we add it separately)
+                    let stem = resolved_stem.trim();
+                    let filename = if stem.is_empty() || stem == &ext_str {
+                        // Template resolved to nothing useful — fallback
+                        let fallback = sanitize(&title);
+                        if fallback.is_empty() {
+                            format!("{}.{}", jid, ext_str)
                         } else {
-                            format!("{}{}", safe, ext)
+                            format!("{}.{}", fallback, ext_str)
                         }
+                    } else if stem.ends_with(&format!(".{}", ext_str)) {
+                        // Template already has extension (user put {ext} in template)
+                        stem.to_string()
                     } else {
-                        chosen
-                            .file_name()
-                            .map(|n| n.to_string_lossy().to_string())
-                            .unwrap_or_else(|| format!("{}{}", jid, ext))
+                        format!("{}.{}", stem, ext_str)
                     };
 
                     // Auto-save to configured download directory
@@ -530,11 +609,18 @@ pub async fn start_download(
                     } else {
                         dest
                     };
-                    let saved_path_str = if let Err(e) = std::fs::copy(&chosen, &final_dest) {
-                        // Auto-save failed; file still in app data dir
-                        format!("Save failed: {}", e)
-                    } else {
-                        final_dest.to_string_lossy().to_string()
+                    let saved_path_str = match std::fs::rename(&chosen, &final_dest) {
+                        Ok(_) => final_dest.to_string_lossy().to_string(),
+                        Err(_) => {
+                            // rename fails across drives — fall back to copy + delete
+                            match std::fs::copy(&chosen, &final_dest) {
+                                Ok(_) => {
+                                    let _ = std::fs::remove_file(&chosen);
+                                    final_dest.to_string_lossy().to_string()
+                                }
+                                Err(e) => format!("Save failed: {}", e),
+                            }
+                        }
                     };
 
                     // Append to download history
@@ -562,7 +648,14 @@ pub async fn start_download(
                             .show();
                     }
 
-                    store.mark_done(&jid, chosen, filename.clone()).await;
+                    // Store the final path — either the moved/copied destination,
+                    // or the original temp file if save failed.
+                    let final_path = if saved_path_str.starts_with("Save failed") {
+                        chosen
+                    } else {
+                        final_dest
+                    };
+                    store.mark_done(&jid, final_path, filename.clone()).await;
                     let _ = app_handle.emit(
                         "download-complete",
                         CompletePayload {

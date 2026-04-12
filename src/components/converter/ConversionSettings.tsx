@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, Video, AudioLines, Scissors, FileOutput } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronDown, Video, AudioLines, Scissors, FileOutput, HardDrive } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { LabeledSelect, LabeledSlider, TimeInput, ChipGroup } from "./SettingControls";
 import type { ConversionSettings as Settings, MediaInfo } from "@/types/converter";
@@ -170,6 +170,87 @@ export function ConversionSettings({ settings, mediaInfo, onChange, outputName, 
           <p className="text-[11px] text-tertiary mt-2">Total duration: {formatDuration(mediaInfo.durationSecs)}</p>
         )}
       </Section>
+
+      {/* Estimated output size */}
+      <SizeEstimate settings={settings} mediaInfo={mediaInfo} />
+    </div>
+  );
+}
+
+function parseTimeToSecs(t: string): number {
+  const parts = t.split(":").map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parts[0] || 0;
+}
+
+function SizeEstimate({ settings, mediaInfo }: { settings: Settings; mediaInfo: MediaInfo | null }) {
+  const estimate = useMemo(() => {
+    if (!mediaInfo || mediaInfo.fileSize <= 0 || mediaInfo.durationSecs <= 0) return null;
+
+    // Effective duration after trim
+    const startSecs = settings.startTime ? parseTimeToSecs(settings.startTime) : 0;
+    const endSecs = settings.endTime ? parseTimeToSecs(settings.endTime) : mediaInfo.durationSecs;
+    const duration = Math.max(0, Math.min(endSecs, mediaInfo.durationSecs) - startSecs);
+    if (duration <= 0) return null;
+    const durationRatio = duration / mediaInfo.durationSecs;
+
+    // If copy mode, just scale by duration
+    if (settings.videoCodec === "copy" && settings.audioCodec === "copy") {
+      return mediaInfo.fileSize * durationRatio;
+    }
+
+    // Resolution scaling
+    let resRatio = 1;
+    if (settings.resolution && settings.resolution !== "original" && mediaInfo.width && mediaInfo.height) {
+      const [tw, th] = settings.resolution.split("x").map(Number);
+      const srcPixels = mediaInfo.width * mediaInfo.height;
+      const tgtPixels = tw * th;
+      if (srcPixels > 0 && tgtPixels > 0) resRatio = tgtPixels / srcPixels;
+    }
+
+    // CRF quality scaling (rough: CRF 23 = 1x, CRF 18 = ~2x, CRF 28 = ~0.5x)
+    let qualityFactor = 1;
+    if (settings.bitrateMode === "crf" && settings.crfValue != null) {
+      qualityFactor = Math.pow(2, (23 - settings.crfValue) / 6);
+    }
+
+    // Explicit bitrate override
+    if ((settings.bitrateMode === "cbr" || settings.bitrateMode === "vbr") && settings.videoBitrate) {
+      const kbps = parseInt(settings.videoBitrate.replace(/[^0-9]/g, ""));
+      if (kbps > 0) {
+        const audioBps = settings.audioCodec !== "none" ? (parseInt(settings.audioBitrate?.replace(/[^0-9]/g, "") || "192") * 1000 / 8) : 0;
+        return (kbps * 1000 / 8 + audioBps) * duration;
+      }
+    }
+
+    // Audio-only output
+    if (settings.videoCodec === "none" || AUDIO_ONLY_FORMATS.includes(settings.outputFormat)) {
+      const audioBitrate = parseInt(settings.audioBitrate?.replace(/[^0-9]/g, "") || "192");
+      return (audioBitrate * 1000 / 8) * duration;
+    }
+
+    return mediaInfo.fileSize * durationRatio * resRatio * qualityFactor;
+  }, [settings, mediaInfo]);
+
+  if (!estimate || estimate <= 0) return null;
+
+  const fmt = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
+
+  return (
+    <div className="glass-card rounded-xl px-4 py-3 flex items-center gap-2">
+      <HardDrive size={14} className="text-tertiary shrink-0" />
+      <span className="text-[12px] text-secondary">Estimated output:</span>
+      <span className="text-[12px] font-semibold text-primary">{fmt(estimate)}</span>
+      {mediaInfo && mediaInfo.fileSize > 0 && (
+        <span className="text-[10px] text-tertiary ml-auto">
+          Source: {fmt(mediaInfo.fileSize)}
+        </span>
+      )}
     </div>
   );
 }

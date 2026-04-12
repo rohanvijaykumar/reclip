@@ -4,10 +4,10 @@ import type {
   DuplicateInfo, HistoryEntry, PlaylistHeaderData,
 } from "@/types";
 import { AUDIO_FORMATS } from "@/types";
-import { parseUrls, looksLikePlaylist, isPermanentError } from "@/lib/utils";
+import { parseUrls, looksLikePlaylist, isPermanentError, detectPlatformFromUrl } from "@/lib/utils";
 import * as tauri from "@/lib/tauri";
 
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = 10;
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [3, 10, 30]; // seconds
 
@@ -82,6 +82,7 @@ export function useDownloadManager(config: AppConfig) {
       ? (AUDIO_FORMATS.find((f) => f.id === fmt)?.ytdlpName ?? fmt)
       : fmt;
     const downloadTitle = card.customFilename?.trim() || card.title || "";
+    const platform = detectPlatformFromUrl(card.url);
 
     tauri.startDownload(
       card.url,
@@ -89,7 +90,9 @@ export function useDownloadManager(config: AppConfig) {
       card.selectedFormatId || null,
       downloadTitle,
       resolvedOutputFormat,
-      card.thumbnail || null
+      card.thumbnail || null,
+      platform,
+      card.uploader || null,
     ).then((jobId) => {
       setCards((prev) =>
         prev.map((c) => c.url === card.url && c.status === "downloading" && !c.jobId
@@ -247,98 +250,81 @@ export function useDownloadManager(config: AppConfig) {
         history = await tauri.getHistory();
       } catch { /* ignore */ }
 
-      const newCards: CardData[] = [];
-      const newPlaylists: PlaylistHeaderData[] = [];
       const preferredHeight = qualityToHeight(configRef.current.defaultVideoQuality);
 
+      // Separate playlist URLs from single video URLs
+      const playlistUrls: string[] = [];
+      const singleUrls: string[] = [];
       for (const url of urls) {
-        // Check if it's a playlist URL
         if (looksLikePlaylist(url)) {
-          const loadingIdx = newCards.length;
-          newCards.push({ url, status: "loading" });
-          setCards([...newCards]);
+          playlistUrls.push(url);
+        } else {
+          singleUrls.push(url);
+        }
+      }
 
-          try {
-            const playlist = await tauri.getPlaylistInfo(url);
-            // Remove loading placeholder
-            newCards.splice(loadingIdx, 1);
+      // --- Handle playlists first (use flat data — no per-entry get_info) ---
+      const allPlaylists: PlaylistHeaderData[] = [];
+      const playlistCards: CardData[] = [];
 
-            const playlistId = `playlist-${Date.now()}`;
-            const totalDuration = playlist.entries.reduce((sum, e) => sum + (e.duration ?? 0), 0);
-            newPlaylists.push({
-              id: playlistId,
-              title: playlist.title,
-              uploader: playlist.uploader,
-              thumbnail: playlist.thumbnail,
-              videoCount: playlist.entryCount,
-              totalDuration,
+      for (const url of playlistUrls) {
+        try {
+          const playlist = await tauri.getPlaylistInfo(url);
+          const playlistId = `playlist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          const totalDuration = playlist.entries.reduce((sum, e) => sum + (e.duration ?? 0), 0);
+          allPlaylists.push({
+            id: playlistId,
+            title: playlist.title,
+            uploader: playlist.uploader,
+            thumbnail: playlist.thumbnail,
+            videoCount: playlist.entryCount,
+            totalDuration,
+          });
+
+          // Use flat playlist data directly — no individual get_info needed
+          for (const entry of playlist.entries) {
+            const duplicateInfo = findDuplicate(history, entry.url);
+            playlistCards.push({
+              url: entry.url,
+              status: "ready",
+              title: entry.title || "",
+              thumbnail: entry.thumbnail || "",
+              duration: entry.duration,
+              uploader: entry.uploader || "",
+              formats: [],
+              selectedFormatId: null,
+              duplicateInfo,
+              playlistId,
+              checked: true,
             });
-            setPlaylists([...newPlaylists]);
-
-            // Add individual entries
-            for (const entry of playlist.entries) {
-              const entryIdx = newCards.length;
-              newCards.push({
-                url: entry.url,
-                status: "loading",
-                playlistId,
-                checked: true,
-              });
-              setCards([...newCards]);
-
-              try {
-                const data = await tauri.getInfo(entry.url);
-                let defaultFormatId = data.formats?.[0]?.id || null;
-                if (preferredHeight && data.formats) {
-                  const match = data.formats.find((f) => f.height === preferredHeight);
-                  if (match) defaultFormatId = match.id;
-                }
-                const duplicateInfo = findDuplicate(history, entry.url);
-                newCards[entryIdx] = {
-                  ...newCards[entryIdx],
-                  status: "ready",
-                  title: data.title || entry.title || "",
-                  thumbnail: data.thumbnail || entry.thumbnail || "",
-                  duration: data.duration ?? entry.duration,
-                  uploader: data.uploader || entry.uploader || "",
-                  formats: data.formats || [],
-                  selectedFormatId: defaultFormatId,
-                  duplicateInfo,
-                };
-              } catch (err) {
-                newCards[entryIdx] = {
-                  ...newCards[entryIdx],
-                  status: "info-error",
-                  title: entry.title || "",
-                  thumbnail: entry.thumbnail || "",
-                  error: typeof err === "string" ? err : (err as Error).message || "Unknown error",
-                };
-              }
-              setCards([...newCards]);
-            }
-            continue;
-          } catch (err) {
-            // NOT_A_PLAYLIST means it's a single video with a list param — fall through
-            const errMsg = typeof err === "string" ? err : (err as Error).message || "";
-            if (errMsg !== "NOT_A_PLAYLIST") {
-              newCards[loadingIdx] = {
-                ...newCards[loadingIdx],
-                status: "info-error",
-                error: errMsg || "Failed to load playlist",
-              };
-              setCards([...newCards]);
-              continue;
-            }
-            // Remove loading and fall through to single video fetch
-            newCards.splice(loadingIdx, 1);
+          }
+        } catch (err) {
+          const errMsg = typeof err === "string" ? err : (err as Error).message || "";
+          if (errMsg === "NOT_A_PLAYLIST") {
+            // It's actually a single video — add to single list
+            singleUrls.push(url);
+          } else {
+            playlistCards.push({
+              url,
+              status: "info-error",
+              error: errMsg || "Failed to load playlist",
+            });
           }
         }
+      }
 
-        // Single video fetch
-        const idx = newCards.length;
-        newCards.push({ url, status: "loading" });
-        setCards([...newCards]);
+      setPlaylists(allPlaylists);
 
+      // --- Show all loading cards immediately, then fetch in parallel ---
+      const loadingCards: CardData[] = singleUrls.map((url) => ({ url, status: "loading" as const }));
+      setCards([...playlistCards, ...loadingCards]);
+
+      // Fetch all single URLs in parallel (batch of up to 6 concurrent)
+      const FETCH_CONCURRENCY = 6;
+      const singleResults: CardData[] = new Array(singleUrls.length);
+
+      const fetchOne = async (idx: number) => {
+        const url = singleUrls[idx];
         try {
           const data = await tauri.getInfo(url);
           let defaultFormatId = data.formats?.[0]?.id || null;
@@ -347,8 +333,8 @@ export function useDownloadManager(config: AppConfig) {
             if (match) defaultFormatId = match.id;
           }
           const duplicateInfo = findDuplicate(history, url);
-          newCards[idx] = {
-            ...newCards[idx],
+          singleResults[idx] = {
+            url,
             status: "ready",
             title: data.title || "",
             thumbnail: data.thumbnail || "",
@@ -359,13 +345,28 @@ export function useDownloadManager(config: AppConfig) {
             duplicateInfo,
           };
         } catch (err) {
-          newCards[idx] = {
-            ...newCards[idx],
+          singleResults[idx] = {
+            url,
             status: "info-error",
             error: typeof err === "string" ? err : (err as Error).message || "Unknown error",
           };
         }
-        setCards([...newCards]);
+        // Update the specific card as soon as its result arrives
+        setCards((prev) => {
+          const playlistCount = playlistCards.length;
+          return prev.map((c, i) =>
+            i === playlistCount + idx ? singleResults[idx] : c
+          );
+        });
+      };
+
+      // Run fetches in batches of FETCH_CONCURRENCY
+      for (let i = 0; i < singleUrls.length; i += FETCH_CONCURRENCY) {
+        const batch = [];
+        for (let j = i; j < Math.min(i + FETCH_CONCURRENCY, singleUrls.length); j++) {
+          batch.push(fetchOne(j));
+        }
+        await Promise.all(batch);
       }
 
       setIsFetching(false);
@@ -451,6 +452,8 @@ export function useDownloadManager(config: AppConfig) {
   }, []);
 
   const skipCard = useCallback((index: number) => {
+    const card = cardsRef.current[index];
+    if (card?.jobId) tauri.cleanupDownload(card.jobId).catch(() => {});
     setCards((prev) => {
       const filtered = prev.filter((_, i) => i !== index);
       return recomputeQueuePositions(filtered);
@@ -530,6 +533,8 @@ export function useDownloadManager(config: AppConfig) {
   }, []);
 
   const removeCard = useCallback((index: number) => {
+    const card = cardsRef.current[index];
+    if (card?.jobId) tauri.cleanupDownload(card.jobId).catch(() => {});
     setCards((prev) => {
       const filtered = prev.filter((_, i) => i !== index);
       return recomputeQueuePositions(filtered);

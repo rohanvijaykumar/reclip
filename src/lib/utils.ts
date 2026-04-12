@@ -9,6 +9,30 @@ export function parseUrls(text: string): string[] {
   ];
 }
 
+const PLATFORM_PATTERNS: { name: string; pattern: RegExp }[] = [
+  { name: "YouTube", pattern: /(?:youtube\.com\/(?:watch|shorts|live|embed)|youtu\.be\/)/i },
+  { name: "TikTok", pattern: /tiktok\.com\//i },
+  { name: "Instagram", pattern: /instagram\.com\/(?:p|reel|tv)\//i },
+  { name: "X", pattern: /(?:twitter\.com|x\.com)\/\w+\/status\//i },
+  { name: "Reddit", pattern: /(?:reddit\.com|redd\.it)\//i },
+  { name: "SoundCloud", pattern: /soundcloud\.com\//i },
+  { name: "Vimeo", pattern: /vimeo\.com\/\d/i },
+  { name: "Facebook", pattern: /(?:facebook\.com|fb\.watch)\/.*(?:video|watch|reel)/i },
+  { name: "Twitch", pattern: /(?:twitch\.tv\/(?:videos\/|.*\/clip\/|\w+)|clips\.twitch\.tv\/)/i },
+  { name: "Dailymotion", pattern: /dailymotion\.com\/video\//i },
+  { name: "Bilibili", pattern: /bilibili\.com\/video\//i },
+  { name: "Pinterest", pattern: /pinterest\.com\/pin\//i },
+];
+
+export function detectPlatformFromUrl(url: string): string | null {
+  for (const { name, pattern } of PLATFORM_PATTERNS) {
+    if (pattern.test(url)) return name;
+  }
+  return null;
+}
+
+export { PLATFORM_PATTERNS };
+
 export function fmtDur(s: number | null | undefined): string {
   if (!s) return "";
   const m = Math.floor(s / 60);
@@ -43,6 +67,13 @@ const PERMANENT_ERROR_PATTERNS = [
 
 export function isPermanentError(err: string): boolean {
   return PERMANENT_ERROR_PATTERNS.some((p) => err.includes(p));
+}
+
+export function fmtSize(bytes: number | null | undefined): string | null {
+  if (!bytes || bytes <= 0) return null;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 export function friendlyError(err: string): string {
