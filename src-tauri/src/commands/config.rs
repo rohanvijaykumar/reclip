@@ -50,6 +50,55 @@ pub async fn open_download_folder(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Open the system file explorer and highlight/select a specific file.
+#[tauri::command]
+pub async fn show_in_folder(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        if p.exists() && p.is_file() {
+            std::process::Command::new("explorer")
+                .args(["/select,", &path])
+                .creation_flags(0x08000000)
+                .spawn()
+                .map_err(|e| format!("Failed to open explorer: {}", e))?;
+        } else {
+            let folder = p.parent().unwrap_or(p);
+            std::process::Command::new("explorer")
+                .arg(folder.to_string_lossy().to_string())
+                .creation_flags(0x08000000)
+                .spawn()
+                .map_err(|e| format!("Failed to open explorer: {}", e))?;
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let target = if p.exists() { &path } else { p.parent().map(|pp| pp.to_str().unwrap_or(&path)).unwrap_or(&path) };
+        std::process::Command::new("open")
+            .args(["-R", target])
+            .spawn()
+            .map_err(|e| format!("Failed to open Finder: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let folder = if p.is_file() {
+            p.parent().unwrap_or(p).to_string_lossy().to_string()
+        } else {
+            path.clone()
+        };
+        std::process::Command::new("xdg-open")
+            .arg(folder)
+            .spawn()
+            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GpuDetectionResult {

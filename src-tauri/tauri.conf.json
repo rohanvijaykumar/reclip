@@ -11,10 +11,12 @@
     "windows": [
       {
         "title": "ReClip",
-        "width": 700,
+        "width": 800,
         "height": 850,
         "minWidth": 500,
         "minHeight": 600,
+        "visible": false,
+        "maximizable": true,
         "resizable": true,
         "decorations": true
       }

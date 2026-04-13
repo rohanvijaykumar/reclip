@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Settings as SettingsIcon, Clock, FolderOpen, Download, ArrowLeftRight, Copy, Trash2, ArrowUpToLine, ArrowUp, X as XIcon, FolderOpen as FolderIcon } from "lucide-react";
+import { Settings as SettingsIcon, Clock, FolderOpen, Download, ArrowLeftRight, Minimize2, Copy, Trash2, ArrowUpToLine, ArrowUp, X as XIcon, FolderOpen as FolderIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useConfig } from "@/contexts/ConfigContext";
 import { useDownloadManager } from "@/hooks/useDownloadManager";
@@ -14,12 +14,13 @@ import { SettingsView } from "@/components/SettingsView";
 import { HistoryView } from "@/components/HistoryView";
 import { EmptyState } from "@/components/EmptyState";
 import { ConverterView } from "@/components/converter/ConverterView";
+import { CompressorView } from "@/components/compressor/CompressorView";
 import { VIDEO_FORMATS, AUDIO_FORMATS } from "@/types";
 import type { ContextMenuItem } from "@/types";
 import * as tauri from "@/lib/tauri";
 
 type ViewState = "main" | "settings" | "history";
-type Tab = "download" | "convert";
+type Tab = "download" | "convert" | "compress";
 
 interface ContextMenuState {
   x: number;
@@ -77,7 +78,6 @@ export default function App() {
     setTimeout(() => fetchUrls(url), 100);
   }, [fetchUrls]);
 
-  // --- Context menu ---
   const handleCardContextMenu = useCallback((index: number, e: React.MouseEvent) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, cardIndex: index });
@@ -87,7 +87,6 @@ export default function App() {
     const card = cards[index];
     if (!card) return [];
     const items: ContextMenuItem[] = [];
-
     if (card.status === "ready") {
       items.push({ label: "Download", icon: <Download size={14} />, action: () => downloadCard(index) });
     }
@@ -107,11 +106,9 @@ export default function App() {
     }
     items.push({ label: "", action: () => {}, separator: true });
     items.push({ label: "Remove", icon: <Trash2 size={14} />, action: () => removeCard(index), danger: true });
-
     return items;
   }, [cards, downloadCard, downloadNext, moveToTop, removeCard, copyUrl]);
 
-  // --- Drag reorder for queued ---
   const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
     setDragIndex(index);
     e.dataTransfer.effectAllowed = "move";
@@ -129,11 +126,9 @@ export default function App() {
     setDragIndex(null);
   }, [dragIndex, moveInQueue]);
 
-  // Bulk quality set for non-playlist cards
   const setAllQuality = useCallback((formatId: string) => {
     cards.forEach((c, i) => {
       if (c.status === "ready" && !c.playlistId) {
-        // For video: find the format matching this height
         if (category === "video" && c.formats) {
           const height = parseInt(formatId);
           const match = c.formats.find((f) => f.height === height);
@@ -145,35 +140,33 @@ export default function App() {
     });
   }, [cards, category, pickFormat]);
 
-  // Show download all bar?
   const showBar = readyCount >= 2 || downloadingCount > 0 || queuedCount > 0 || allDoneFlash || (errorCount > 0 && doneCount > 0);
 
   if (!isLoaded) {
     return <div className="h-screen bg-base" />;
   }
 
+  // ─── Settings view ───
   if (currentView === "settings") {
     return (
       <div className="h-screen flex flex-col bg-base bg-noise overflow-hidden">
         <SettingsView onBack={() => setCurrentView("main")} />
-        {detection && (
-          <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />
-        )}
+        {detection && <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />}
       </div>
     );
   }
 
+  // ─── History view ───
   if (currentView === "history") {
     return (
       <div className="h-screen flex flex-col bg-base bg-noise overflow-hidden">
         <HistoryView onBack={() => setCurrentView("main")} onRedownload={handleRedownload} />
-        {detection && (
-          <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />
-        )}
+        {detection && <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />}
       </div>
     );
   }
 
+  // ─── Main view ───
   return (
     <div className="h-screen flex flex-col bg-base bg-noise overflow-hidden">
       {/* Header */}
@@ -181,7 +174,6 @@ export default function App() {
         <div>
           <h1 className="font-semibold text-2xl tracking-tight text-primary mb-1">ReClip</h1>
           <p className="text-sm text-secondary">The cleanest way to save media locally.</p>
-          {/* Tab Bar */}
           <div className="flex glass-card rounded-lg p-1 mt-3 w-fit">
             <button
               onClick={() => setActiveTab("download")}
@@ -205,6 +197,17 @@ export default function App() {
             >
               <ArrowLeftRight size={14} /> Convert
             </button>
+            <button
+              onClick={() => setActiveTab("compress")}
+              className={cn(
+                "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+                activeTab === "compress"
+                  ? "bg-hover text-primary shadow-sm"
+                  : "text-tertiary hover:text-secondary"
+              )}
+            >
+              <Minimize2 size={14} /> Compress
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -225,84 +228,83 @@ export default function App() {
         </div>
       </div>
 
-      {/* Scrollable Content */}
+      {/* Tab content — ALL tabs always mounted, inactive hidden */}
       <div className="flex-1 overflow-y-auto relative pb-20">
         <div className="px-6">
-          {activeTab === "download" ? (
-            <>
-              <InputArea
-                urls={urls}
-                onUrlsChange={setUrls}
-                category={category}
-                outputFormat={outputFormat}
-                onCategoryChange={setCategory}
-                onOutputFormatChange={setOutputFormat}
-                onFetch={handleFetch}
-                isFetching={isFetching}
-              />
-
-              {cards.length === 0 && playlists.length === 0 ? (
-                <EmptyState />
-              ) : (
-                <>
-                  {/* Playlist headers */}
-                  {playlists.map((pl) => (
-                    <PlaylistHeader
-                      key={pl.id}
-                      data={pl}
-                      cards={cards}
+          <div className={activeTab !== "download" ? "hidden" : ""}>
+            <InputArea
+              urls={urls}
+              onUrlsChange={setUrls}
+              category={category}
+              outputFormat={outputFormat}
+              onCategoryChange={setCategory}
+              onOutputFormatChange={setOutputFormat}
+              onFetch={handleFetch}
+              isFetching={isFetching}
+            />
+            {cards.length === 0 && playlists.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <>
+                {playlists.map((pl) => (
+                  <PlaylistHeader
+                    key={pl.id}
+                    data={pl}
+                    cards={cards}
+                    category={category}
+                    onToggleAll={(checked) => toggleAllPlaylist(pl.id, checked)}
+                    onSetAllQuality={(fid) => {
+                      if (category === "video") {
+                        const height = parseInt(fid);
+                        cards.forEach((c, i) => {
+                          if (c.playlistId === pl.id && c.formats) {
+                            const match = c.formats.find((f) => f.height === height);
+                            if (match) pickFormat(i, match.id);
+                          }
+                        });
+                      } else {
+                        setAllPlaylistQuality(pl.id, fid);
+                      }
+                    }}
+                  />
+                ))}
+                <div className="flex flex-col gap-4">
+                  {cards.map((card, idx) => (
+                    <VideoCard
+                      key={`${card.url}-${idx}`}
+                      data={card}
+                      index={idx}
+                      formatLabel={formatDisplay}
                       category={category}
-                      onToggleAll={(checked) => toggleAllPlaylist(pl.id, checked)}
-                      onSetAllQuality={(fid) => {
-                        // For video: find the format at this height for each card
-                        if (category === "video") {
-                          const height = parseInt(fid);
-                          cards.forEach((c, i) => {
-                            if (c.playlistId === pl.id && c.formats) {
-                              const match = c.formats.find((f) => f.height === height);
-                              if (match) pickFormat(i, match.id);
-                            }
-                          });
-                        } else {
-                          setAllPlaylistQuality(pl.id, fid);
-                        }
-                      }}
+                      onDownload={() => downloadCard(idx)}
+                      onPickFormat={(fid) => pickFormat(idx, fid)}
+                      onRename={(name) => setCustomFilename(idx, name)}
+                      onDismissDuplicate={() => dismissDuplicate(idx)}
+                      onSkip={() => skipCard(idx)}
+                      onContextMenu={(e) => handleCardContextMenu(idx, e)}
+                      onToggleCheck={() => toggleCheck(idx)}
+                      draggable={card.status === "queued"}
+                      onDragStart={(e) => handleDragStart(idx, e)}
+                      onDragOver={handleDragOver}
+                      onDrop={() => handleDrop(idx)}
                     />
                   ))}
+                </div>
+              </>
+            )}
+          </div>
 
-                  {/* Cards */}
-                  <div className="flex flex-col gap-4">
-                    {cards.map((card, idx) => (
-                      <VideoCard
-                        key={`${card.url}-${idx}`}
-                        data={card}
-                        index={idx}
-                        formatLabel={formatDisplay}
-                        category={category}
-                        onDownload={() => downloadCard(idx)}
-                        onPickFormat={(fid) => pickFormat(idx, fid)}
-                        onRename={(name) => setCustomFilename(idx, name)}
-                        onDismissDuplicate={() => dismissDuplicate(idx)}
-                        onSkip={() => skipCard(idx)}
-                        onContextMenu={(e) => handleCardContextMenu(idx, e)}
-                        onToggleCheck={() => toggleCheck(idx)}
-                        draggable={card.status === "queued"}
-                        onDragStart={(e) => handleDragStart(idx, e)}
-                        onDragOver={handleDragOver}
-                        onDrop={() => handleDrop(idx)}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          ) : (
-            <ConverterView />
-          )}
+          <div className={activeTab !== "convert" ? "hidden" : ""}>
+            <ConverterView isActive={activeTab === "convert"} />
+          </div>
+
+          <div className={activeTab !== "compress" ? "hidden" : ""}>
+            <CompressorView isActive={activeTab === "compress"} />
+          </div>
         </div>
       </div>
 
-      {/* Bottom bar (download tab only) */}
+      {/* Bottom bar */}
       {activeTab === "download" && (
         <div className="absolute bottom-0 left-0 right-0 z-30">
           <div className="px-6 pb-4 flex justify-between items-center">
@@ -316,7 +318,6 @@ export default function App() {
                 : "Downloads"}
             </button>
           </div>
-
           {showBar && (
             <div className="px-6 pb-6">
               <DownloadAllBar
@@ -337,7 +338,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Context menu */}
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
@@ -347,10 +347,7 @@ export default function App() {
         />
       )}
 
-      {/* Clipboard toast */}
-      {detection && (
-        <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />
-      )}
+      {detection && <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />}
     </div>
   );
 }

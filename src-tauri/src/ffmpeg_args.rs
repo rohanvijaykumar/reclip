@@ -119,8 +119,8 @@ pub fn build_ffmpeg_args(
                         let crf = settings.crf_value.unwrap_or(23);
                         match hw.as_str() {
                             "nvenc" => {
-                                // NVENC: use -cq for constant quality + preset for speed
-                                args.extend(["-cq".into(), crf.to_string(), "-preset".into(), "p4".into()]);
+                                // NVENC: use -rc vbr -cq for constant quality + preset for speed
+                                args.extend(["-rc".into(), "vbr".into(), "-cq".into(), crf.to_string(), "-preset".into(), "p4".into()]);
                             }
                             "amf" => {
                                 args.extend(["-quality".into(), "speed".into(), "-rc".into(), "cqp".into(), "-qp_i".into(), crf.to_string(), "-qp_p".into(), crf.to_string()]);
@@ -155,11 +155,14 @@ pub fn build_ffmpeg_args(
                     _ => {}
                 }
 
-                // Pixel format
+                // Pixel format — use explicit if set, otherwise force yuv420p for HW encoders
+                // (NVENC/AMF/QSV cannot handle 10-bit or unusual pixel formats for H.264)
                 if let Some(ref pf) = settings.pixel_format {
                     if !pf.is_empty() {
                         args.extend(["-pix_fmt".into(), pf.clone()]);
                     }
+                } else if hw != "software" && (codec == "h264" || codec == "h265") {
+                    args.extend(["-pix_fmt".into(), "yuv420p".into()]);
                 }
             }
         }
@@ -255,7 +258,7 @@ fn fix_audio_codec_for_container(codec: &str, container: &str) -> String {
     }
 }
 
-fn resolve_video_encoder(codec: &str, hw: &str) -> String {
+pub fn resolve_video_encoder(codec: &str, hw: &str) -> String {
     match (codec, hw) {
         ("h264", "nvenc") => "h264_nvenc".into(),
         ("h264", "amf") => "h264_amf".into(),
@@ -274,7 +277,7 @@ fn resolve_video_encoder(codec: &str, hw: &str) -> String {
     }
 }
 
-fn resolve_audio_encoder(codec: &str) -> String {
+pub fn resolve_audio_encoder(codec: &str) -> String {
     match codec {
         "aac" => "aac".into(),
         "opus" => "libopus".into(),
@@ -286,7 +289,7 @@ fn resolve_audio_encoder(codec: &str) -> String {
     }
 }
 
-fn parse_resolution(res: &str) -> (u32, u32) {
+pub fn parse_resolution(res: &str) -> (u32, u32) {
     if let Some((w_str, h_str)) = res.split_once('x') {
         let w = w_str.parse::<u32>().unwrap_or(0);
         let h = h_str.parse::<u32>().unwrap_or(0);

@@ -2,6 +2,8 @@
 #![windows_subsystem = "windows"]
 
 mod commands;
+mod compress_args;
+mod compressor;
 mod config;
 mod converter;
 mod ffmpeg_args;
@@ -9,6 +11,7 @@ mod ffprobe;
 mod history;
 mod jobs;
 
+use compressor::CompressJobStore;
 use converter::ConvertJobStore;
 use jobs::JobStore;
 use tauri::Manager;
@@ -61,10 +64,18 @@ fn main() {
         .setup(|app| {
             cleanup_staging_dir(app.handle());
             cleanup_webview_cache(app.handle());
+
+            // Maximize then show — window starts hidden to avoid position glitch
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.maximize();
+                let _ = window.show();
+            }
+
             Ok(())
         })
         .manage(JobStore::default())
         .manage(ConvertJobStore::default())
+        .manage(CompressJobStore::default())
         .invoke_handler(tauri::generate_handler![
             commands::download::get_playlist_info,
             commands::download::get_info,
@@ -75,12 +86,15 @@ fn main() {
             commands::config::get_config,
             commands::config::save_config,
             commands::config::open_download_folder,
+            commands::config::show_in_folder,
             commands::config::detect_gpu,
             commands::history::get_history,
             commands::history::clear_history,
             commands::convert::probe_file,
             commands::convert::start_conversion,
             commands::convert::cancel_conversion,
+            commands::compress::start_compression,
+            commands::compress::cancel_compression,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ReClip");

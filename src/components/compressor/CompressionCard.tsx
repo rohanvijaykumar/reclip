@@ -3,24 +3,20 @@ import { cn } from "@/lib/cn";
 import { formatFileSize, formatDuration } from "@/types/converter";
 import { AudioWaveform } from "@/components/AudioWaveform";
 import * as tauri from "@/lib/tauri";
-import type { ConvertCard } from "@/types/converter";
-
-const AUDIO_ONLY_FORMATS = ["mp3", "flac", "wav", "ogg", "opus", "m4a", "aac"];
+import type { CompressCard } from "@/types/compressor";
 
 interface Props {
-  card: ConvertCard;
+  card: CompressCard;
   onStart: () => void;
   onCancel: () => void;
   onRemove: () => void;
 }
 
-function MediaPreview({ card }: { card: ConvertCard }) {
+function MediaPreview({ card }: { card: CompressCard }) {
   const info = card.mediaInfo;
-  const isAudioOutput = AUDIO_ONLY_FORMATS.includes(card.settings.outputFormat);
   const isAudioOnly = info && !info.hasVideo;
 
-  // Audio waveform for audio-only files or audio output format
-  if (isAudioOnly || isAudioOutput) {
+  if (isAudioOnly) {
     return (
       <div className="w-[56px] h-[56px] rounded-lg overflow-hidden bg-raised ring-1 ring-black/10 shrink-0">
         <AudioWaveform seed={card.filePath + card.fileName} width={56} height={56} />
@@ -28,7 +24,6 @@ function MediaPreview({ card }: { card: ConvertCard }) {
     );
   }
 
-  // Video preview — show resolution/codec badge
   if (info?.hasVideo) {
     return (
       <div className="w-[56px] h-[56px] rounded-lg overflow-hidden bg-raised ring-1 ring-black/10 shrink-0 relative flex items-center justify-center bg-gradient-to-br from-hover to-active">
@@ -42,7 +37,6 @@ function MediaPreview({ card }: { card: ConvertCard }) {
     );
   }
 
-  // Fallback
   return (
     <div className="w-[56px] h-[56px] rounded-lg bg-raised ring-1 ring-black/10 shrink-0 flex items-center justify-center">
       <Music size={20} className="text-tertiary" />
@@ -50,7 +44,7 @@ function MediaPreview({ card }: { card: ConvertCard }) {
   );
 }
 
-function MediaMeta({ card }: { card: ConvertCard }) {
+function MediaMeta({ card }: { card: CompressCard }) {
   const info = card.mediaInfo;
   if (!info) return null;
   const parts: string[] = [];
@@ -65,7 +59,7 @@ function MediaMeta({ card }: { card: ConvertCard }) {
   );
 }
 
-export function ConversionCard({ card, onStart, onCancel, onRemove }: Props) {
+export function CompressionCard({ card, onStart, onCancel, onRemove }: Props) {
   // Probing state
   if (card.status === "probing") {
     return (
@@ -124,8 +118,8 @@ export function ConversionCard({ card, onStart, onCancel, onRemove }: Props) {
     );
   }
 
-  // Converting state
-  if (card.status === "converting") {
+  // Compressing state
+  if (card.status === "compressing") {
     const pct = card.progress ?? 0;
     const r = Math.round(232 - (232 - 0) * (pct / 100));
     const g = Math.round(93 + (255 - 93) * (pct / 100));
@@ -143,6 +137,11 @@ export function ConversionCard({ card, onStart, onCancel, onRemove }: Props) {
               <span className="text-[13px] font-medium text-primary truncate">{card.fileName}</span>
             </div>
             <div className="flex items-center gap-3 mt-1">
+              {card.totalPasses != null && card.currentPass != null && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent">
+                  Pass {card.currentPass}/{card.totalPasses}
+                </span>
+              )}
               {card.speed && <span className="text-[11px] font-mono text-secondary">{card.speed}</span>}
               <span className="text-[12px] font-medium text-secondary tabular-nums">{Math.round(pct)}%</span>
             </div>
@@ -163,6 +162,10 @@ export function ConversionCard({ card, onStart, onCancel, onRemove }: Props) {
 
   // Done state
   if (card.status === "done") {
+    const originalSize = card.mediaInfo?.fileSize ?? 0;
+    const outputSize = card.outputSize ?? 0;
+    const reduction = originalSize > 0 ? Math.round((1 - outputSize / originalSize) * 100) : 0;
+
     return (
       <div className="glass-card border-success/20 rounded-xl p-4 animate-card-enter">
         <div className="flex items-center gap-4 mb-3">
@@ -172,9 +175,18 @@ export function ConversionCard({ card, onStart, onCancel, onRemove }: Props) {
               <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
               <span className="text-[13px] font-medium text-primary truncate">{card.outputFilename}</span>
             </div>
-            {card.outputSize != null && (
-              <p className="text-[11px] text-tertiary mt-0.5">{formatFileSize(card.outputSize)}</p>
-            )}
+            <div className="flex items-center gap-2 mt-0.5">
+              {originalSize > 0 && outputSize > 0 && (
+                <span className="text-[11px] text-tertiary">
+                  {formatFileSize(originalSize)} → {formatFileSize(outputSize)}
+                </span>
+              )}
+              {reduction > 0 && (
+                <span className="text-[10px] font-semibold text-success">
+                  {reduction}% smaller
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <button
@@ -205,7 +217,7 @@ export function ConversionCard({ card, onStart, onCancel, onRemove }: Props) {
           <span className="text-[13px] font-medium text-primary truncate block">{card.fileName}</span>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent">
-              {card.settings.outputFormat.toUpperCase()}
+              {card.settings.preset === "custom" ? "CUSTOM" : PRESET_LABELS[card.settings.preset] || card.settings.preset.toUpperCase()}
             </span>
             <MediaMeta card={card} />
           </div>
@@ -217,3 +229,11 @@ export function ConversionCard({ card, onStart, onCancel, onRemove }: Props) {
     </div>
   );
 }
+
+const PRESET_LABELS: Record<string, string> = {
+  "quick-shrink": "QUICK",
+  "balanced": "BALANCED",
+  "maximum": "MAX",
+  "social-media": "SOCIAL",
+  "email-friendly": "EMAIL",
+};

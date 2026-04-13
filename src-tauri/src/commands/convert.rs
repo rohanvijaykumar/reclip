@@ -122,6 +122,9 @@ pub async fn start_conversion(
     let detected_gpu = cfg.detected_gpu.as_deref();
     let args = ffmpeg_args::build_ffmpeg_args(&input_path, &output_path_str, &settings, detected_gpu);
 
+    // Debug: log the ffmpeg args
+    eprintln!("[convert] args: {:?}", args);
+
     // Create job
     let job = crate::converter::ConvertJob {
         id: job_id.clone(),
@@ -224,12 +227,30 @@ pub async fn start_conversion(
                             }
                         }
 
-                        let err_msg = stderr_lines
-                            .iter()
-                            .rev()
-                            .find(|l| !l.trim().is_empty())
-                            .cloned()
-                            .unwrap_or_else(|| "Conversion failed".to_string());
+                        // Log full stderr for debugging
+                        eprintln!("[convert] ffmpeg stderr ({} lines):", stderr_lines.len());
+                        for line in stderr_lines.iter() {
+                            let t = line.trim();
+                            if !t.is_empty() { eprintln!("  {}", t); }
+                        }
+                        // Find specific error line
+                        let err_msg = stderr_lines.iter()
+                            .filter(|l| {
+                                let low = l.trim().to_lowercase();
+                                low != "conversion failed!" && (
+                                    low.contains("error") || low.contains("invalid") ||
+                                    low.contains("not found") || low.contains("unknown") ||
+                                    low.contains("cannot") || low.contains("no such")
+                                )
+                            })
+                            .next()
+                            .map(|l| l.trim().to_string())
+                            .unwrap_or_else(|| {
+                                stderr_lines.iter().rev()
+                                    .find(|l| !l.trim().is_empty())
+                                    .cloned()
+                                    .unwrap_or_else(|| "Conversion failed".to_string())
+                            });
                         store.mark_error(&jid, err_msg.clone()).await;
                         let _ = app_handle.emit(
                             "convert-error",

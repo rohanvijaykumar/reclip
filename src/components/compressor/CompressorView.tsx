@@ -1,31 +1,31 @@
 import { useState } from "react";
-import { Zap, X, Film, Music } from "lucide-react";
+import { Minimize2, X, Film, Music } from "lucide-react";
 import { useConfig } from "@/contexts/ConfigContext";
-import { useConverter } from "@/hooks/useConverter";
-import { FileInput } from "./FileInput";
-import { ConversionSettings } from "./ConversionSettings";
-import { ConversionCard } from "./ConversionCard";
+import { useCompressor } from "@/hooks/useCompressor";
+import { FileInput } from "@/components/converter/FileInput";
+import { CompressionSettings } from "./CompressionSettings";
+import { CompressionCard } from "./CompressionCard";
 import { AudioWaveform } from "@/components/AudioWaveform";
 import { formatDuration, formatFileSize } from "@/types/converter";
 
-export function ConverterView({ isActive = true }: { isActive?: boolean }) {
+export function CompressorView({ isActive = true }: { isActive?: boolean }) {
   const { config } = useConfig();
   const {
     cards,
     addFiles,
     updateSettings,
     setOutputName,
-    startConvert,
-    cancelConvert,
+    startCompress,
+    cancelCompress,
     removeCard,
-    convertAll,
-  } = useConverter(config);
+    compressAll,
+  } = useCompressor(config);
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const readyCards = cards.filter((c) => c.status === "ready");
   const processingCards = cards.filter((c) =>
-    c.status === "converting" || c.status === "done" || c.status === "error" || c.status === "cancelled"
+    c.status === "compressing" || c.status === "done" || c.status === "error" || c.status === "cancelled"
   );
 
   // Auto-select first ready card for settings
@@ -37,9 +37,8 @@ export function ConverterView({ isActive = true }: { isActive?: boolean }) {
     addFiles(paths);
   };
 
-  const handleStartConvert = (cardId: string) => {
-    startConvert(cardId);
-    // Select next ready card for settings
+  const handleStartCompress = (cardId: string) => {
+    startCompress(cardId);
     const next = readyCards.find((c) => c.id !== cardId);
     if (next) setSelectedCardId(next.id);
   };
@@ -56,7 +55,7 @@ export function ConverterView({ isActive = true }: { isActive?: boolean }) {
       {/* Ready cards list (clickable to select for settings) */}
       {readyCards.length > 1 && (
         <div className="flex flex-col gap-2 mb-4">
-          <p className="text-[11px] font-medium text-tertiary uppercase tracking-wider">Files to convert ({readyCards.length})</p>
+          <p className="text-[11px] font-medium text-tertiary uppercase tracking-wider">Files to compress ({readyCards.length})</p>
           <div className="flex flex-col gap-1.5">
             {readyCards.map((card) => {
               const info = card.mediaInfo;
@@ -69,7 +68,6 @@ export function ConverterView({ isActive = true }: { isActive?: boolean }) {
                     settingsCard?.id === card.id ? "ring-1 ring-accent border-accent" : "hover:bg-hover/30"
                   }`}
                 >
-                  {/* Mini preview */}
                   <div className="w-8 h-8 rounded-md overflow-hidden bg-raised ring-1 ring-black/10 shrink-0 flex items-center justify-center">
                     {isAudioOnly ? (
                       <AudioWaveform seed={card.filePath + card.fileName} width={32} height={32} />
@@ -89,7 +87,7 @@ export function ConverterView({ isActive = true }: { isActive?: boolean }) {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent">
-                      {card.settings.outputFormat.toUpperCase()}
+                      {card.settings.preset === "custom" ? "CUSTOM" : card.settings.preset.toUpperCase().replace("-", " ")}
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); removeCard(card.id); }}
@@ -109,7 +107,7 @@ export function ConverterView({ isActive = true }: { isActive?: boolean }) {
       {/* Settings for selected ready card */}
       {settingsCard && settingsCard.mediaInfo && (
         <>
-          {/* Single file header with preview and remove option */}
+          {/* Single file header */}
           {readyCards.length === 1 && (() => {
             const info = settingsCard.mediaInfo;
             const isAudioOnly = info && !info.hasVideo;
@@ -152,7 +150,7 @@ export function ConverterView({ isActive = true }: { isActive?: boolean }) {
               </div>
             );
           })()}
-          <ConversionSettings
+          <CompressionSettings
             settings={settingsCard.settings}
             mediaInfo={settingsCard.mediaInfo}
             onChange={(partial) => updateSettings(settingsCard.id, partial)}
@@ -162,17 +160,17 @@ export function ConverterView({ isActive = true }: { isActive?: boolean }) {
 
           <div className="flex gap-3 mb-6">
             <button
-              onClick={() => handleStartConvert(settingsCard.id)}
+              onClick={() => handleStartCompress(settingsCard.id)}
               className="flex-1 h-11 bg-accent hover:bg-accent-hover active:scale-[0.98] text-accent-text font-semibold text-[14px] rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
             >
-              <Zap size={16} /> Start Conversion
+              <Minimize2 size={16} /> Start Compression
             </button>
             {readyCards.length > 1 && (
               <button
-                onClick={convertAll}
+                onClick={compressAll}
                 className="h-11 px-6 glass-card hover:bg-hover text-primary font-medium text-[13px] rounded-xl transition-all flex items-center gap-2"
               >
-                Convert All ({readyCards.length})
+                Compress All ({readyCards.length})
               </button>
             )}
           </div>
@@ -183,11 +181,11 @@ export function ConverterView({ isActive = true }: { isActive?: boolean }) {
       {processingCards.length > 0 && (
         <div className="flex flex-col gap-3 mb-4">
           {processingCards.map((card) => (
-            <ConversionCard
+            <CompressionCard
               key={card.id}
               card={card}
-              onStart={() => startConvert(card.id)}
-              onCancel={() => cancelConvert(card.id)}
+              onStart={() => startCompress(card.id)}
+              onCancel={() => cancelCompress(card.id)}
               onRemove={() => removeCard(card.id)}
             />
           ))}
@@ -198,11 +196,11 @@ export function ConverterView({ isActive = true }: { isActive?: boolean }) {
       {cards.length === 0 && (
         <div className="py-12 flex flex-col items-center justify-center text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl glass-card flex items-center justify-center mb-4">
-            <Zap className="w-7 h-7 text-tertiary" />
+            <Minimize2 className="w-7 h-7 text-tertiary" />
           </div>
-          <h3 className="text-[15px] font-medium text-primary mb-2">Media Converter</h3>
+          <h3 className="text-[15px] font-medium text-primary mb-2">Media Compressor</h3>
           <p className="text-[13px] text-tertiary max-w-[300px]">
-            Drop a video or audio file above to convert between formats, change quality, trim, extract audio, and more.
+            Drop a video or audio file above to reduce its file size. Choose a preset or fine-tune quality, resolution, and more.
           </p>
         </div>
       )}

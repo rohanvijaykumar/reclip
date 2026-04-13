@@ -35,6 +35,10 @@ export async function openDownloadFolder(): Promise<void> {
   return invoke("open_download_folder");
 }
 
+export async function showInFolder(path: string): Promise<void> {
+  return invoke("show_in_folder", { path });
+}
+
 export async function getHistory(): Promise<HistoryEntry[]> {
   return invoke<HistoryEntry[]>("get_history");
 }

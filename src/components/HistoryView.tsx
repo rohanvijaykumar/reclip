@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, FolderOpen, RotateCcw, Trash2, Clock, Download, ArrowLeftRight } from "lucide-react";
+import { ChevronLeft, FolderOpen, RotateCcw, Trash2, Clock, Download, ArrowLeftRight, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ImageWithFallback } from "./ImageWithFallback";
 import * as tauri from "@/lib/tauri";
@@ -10,7 +10,7 @@ interface Props {
   onRedownload: (url: string) => void;
 }
 
-type HistoryTab = "downloads" | "conversions";
+type HistoryTab = "downloads" | "conversions" | "compressions";
 
 function formatDate(timestamp: number): string {
   const d = new Date(timestamp * 1000);
@@ -46,7 +46,14 @@ export function HistoryView({ onBack, onRedownload }: Props) {
 
   const downloads = history.filter((e) => e.format === "video" || e.format === "audio");
   const conversions = history.filter((e) => e.format === "convert");
-  const filtered = activeTab === "downloads" ? downloads : conversions;
+  const compressions = history.filter((e) => e.format === "compress");
+  const filtered = activeTab === "downloads" ? downloads : activeTab === "conversions" ? conversions : compressions;
+
+  const emptyMessages: Record<HistoryTab, { title: string; body: string }> = {
+    downloads: { title: "No downloads yet", body: "Your download history will appear here after you download media." },
+    conversions: { title: "No conversions yet", body: "Your conversion history will appear here after you convert files." },
+    compressions: { title: "No compressions yet", body: "Your compression history will appear here after you compress files." },
+  };
 
   return (
     <div className="flex flex-col h-full bg-base text-primary animate-slide-in-right z-30 relative">
@@ -104,6 +111,20 @@ export function HistoryView({ onBack, onRedownload }: Props) {
               <span className="text-[10px] bg-subtle px-1.5 py-0.5 rounded-full ml-0.5">{conversions.length}</span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("compressions")}
+            className={cn(
+              "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
+              activeTab === "compressions"
+                ? "bg-hover text-primary shadow-sm"
+                : "text-tertiary hover:text-secondary"
+            )}
+          >
+            <Minimize2 size={14} /> Compressions
+            {compressions.length > 0 && (
+              <span className="text-[10px] bg-subtle px-1.5 py-0.5 rounded-full ml-0.5">{compressions.length}</span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -127,12 +148,10 @@ export function HistoryView({ onBack, onRedownload }: Props) {
               <Clock className="w-7 h-7 text-tertiary" />
             </div>
             <h3 className="text-[15px] font-medium text-primary mb-2">
-              {activeTab === "downloads" ? "No downloads yet" : "No conversions yet"}
+              {emptyMessages[activeTab].title}
             </h3>
             <p className="text-[13px] text-tertiary max-w-[260px]">
-              {activeTab === "downloads"
-                ? "Your download history will appear here after you download media."
-                : "Your conversion history will appear here after you convert files."}
+              {emptyMessages[activeTab].body}
             </p>
           </div>
         ) : (
@@ -155,6 +174,16 @@ export function HistoryView({ onBack, onRedownload }: Props) {
 function HistoryCard({ entry, showRedownload, onRedownload }: { entry: HistoryEntry; showRedownload: boolean; onRedownload: () => void }) {
   const formatBadge = entry.outputFormat?.toUpperCase() || entry.format?.toUpperCase() || "—";
 
+  const iconForFormat = () => {
+    if (entry.format === "compress") return <Minimize2 className="w-5 h-5 text-tertiary" />;
+    if (entry.format === "convert") return <ArrowLeftRight className="w-5 h-5 text-tertiary" />;
+    return <Download className="w-5 h-5 text-tertiary" />;
+  };
+
+  const displayTitle = (entry.format === "convert" || entry.format === "compress")
+    ? entry.filename
+    : (entry.title || entry.filename);
+
   return (
     <div className="glass-card rounded-xl p-4 flex gap-4 group transition-all hover:border-focus/30">
       {/* Thumbnail */}
@@ -167,10 +196,7 @@ function HistoryCard({ entry, showRedownload, onRedownload }: { entry: HistoryEn
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            {entry.format === "convert"
-              ? <ArrowLeftRight className="w-5 h-5 text-tertiary" />
-              : <Download className="w-5 h-5 text-tertiary" />
-            }
+            {iconForFormat()}
           </div>
         )}
       </div>
@@ -178,13 +204,13 @@ function HistoryCard({ entry, showRedownload, onRedownload }: { entry: HistoryEn
       {/* Info */}
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div>
-          <h4 className="text-[13px] font-medium text-primary truncate leading-snug" title={entry.format === "convert" ? entry.filename : entry.title}>
-            {entry.format === "convert" ? entry.filename : (entry.title || entry.filename)}
+          <h4 className="text-[13px] font-medium text-primary truncate leading-snug" title={displayTitle}>
+            {displayTitle}
           </h4>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className={cn(
               "text-[10px] font-semibold px-1.5 py-0.5 rounded",
-              entry.format === "audio" || entry.format === "convert"
+              entry.format === "audio" || entry.format === "convert" || entry.format === "compress"
                 ? "bg-accent/15 text-accent"
                 : "bg-primary/10 text-secondary"
             )}>
@@ -201,7 +227,7 @@ function HistoryCard({ entry, showRedownload, onRedownload }: { entry: HistoryEn
       {/* Actions */}
       <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          onClick={() => tauri.openDownloadFolder()}
+          onClick={() => entry.savedPath ? tauri.showInFolder(entry.savedPath) : tauri.openDownloadFolder()}
           className="p-2 rounded-md hover:bg-hover text-tertiary hover:text-primary transition-colors"
           title="Show in folder"
         >

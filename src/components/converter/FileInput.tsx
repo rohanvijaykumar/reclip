@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Upload, Film, Music } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -9,10 +9,15 @@ import { formatFileSize, formatDuration } from "@/types/converter";
 interface Props {
   onFilesSelected: (paths: string[]) => void;
   mediaInfo: MediaInfo | null;
+  isActive?: boolean;
 }
 
-export function FileInput({ onFilesSelected, mediaInfo }: Props) {
+export function FileInput({ onFilesSelected, mediaInfo, isActive = true }: Props) {
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Track isActive in a ref so the event listener always has the current value
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
 
   // Use Tauri's native drag-drop events for reliable file paths
   useEffect(() => {
@@ -21,6 +26,7 @@ export function FileInput({ onFilesSelected, mediaInfo }: Props) {
     unsubs.push(
       listen<{ paths: string[] }>("tauri://drag-drop", (event) => {
         setIsDragOver(false);
+        if (!isActiveRef.current) return;
         if (event.payload.paths?.length > 0) {
           onFilesSelected(event.payload.paths);
         }
@@ -28,7 +34,9 @@ export function FileInput({ onFilesSelected, mediaInfo }: Props) {
     );
 
     unsubs.push(
-      listen("tauri://drag-enter", () => setIsDragOver(true))
+      listen("tauri://drag-enter", () => {
+        if (isActiveRef.current) setIsDragOver(true);
+      })
     );
 
     unsubs.push(
