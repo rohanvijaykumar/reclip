@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { ChevronDown, Settings2, HardDrive, Info } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { LabeledSelect, ChipGroup } from "@/components/converter/SettingControls";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import type { CompressionSettings as Settings, CompressionPreset, AudioCompressionPreset } from "@/types/compressor";
 import type { MediaInfo } from "@/types/converter";
 import {
@@ -68,7 +70,7 @@ export function CompressionSettings({ settings, mediaInfo, onChange, outputName,
               value={outputName}
               onChange={(e) => onOutputNameChange(e.target.value)}
               placeholder="Enter filename..."
-              className="flex-1 glass-card rounded-lg px-3 py-2 text-[13px] text-primary font-mono focus:outline-none focus:ring-1 focus:ring-accent"
+              className="flex-1 bg-raised/40 backdrop-blur-md rounded-xl px-3.5 py-2 text-[13px] text-primary font-mono ring-1 ring-subtle focus:outline-none focus:ring-accent/50 focus:bg-raised/70 transition-all placeholder:text-tertiary/40"
             />
             <span className="text-[12px] text-tertiary font-mono">.{settings.outputFormat}</span>
           </div>
@@ -79,10 +81,10 @@ export function CompressionSettings({ settings, mediaInfo, onChange, outputName,
               key={f.id}
               onClick={() => handleOutputFormatChange(f.id)}
               className={cn(
-                "px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
+                "px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all",
                 f.id === settings.outputFormat
-                  ? "bg-accent text-accent-text"
-                  : "glass-card text-secondary hover:text-primary"
+                  ? "bg-accent/20 border-accent/20 border text-accent shadow-sm scale-[1.02]"
+                  : "glass-card text-secondary hover:text-primary hover:bg-hover"
               )}
             >
               {f.label}
@@ -100,17 +102,17 @@ export function CompressionSettings({ settings, mediaInfo, onChange, outputName,
               key={p.id}
               onClick={() => handlePresetChange(p.id)}
               className={cn(
-                "px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all flex flex-col items-start",
+                "px-3 py-2.5 text-[12px] font-semibold rounded-xl transition-all flex flex-col items-start min-w-[120px] flex-1 sm:flex-none",
                 p.id === settings.preset
-                  ? "bg-accent text-accent-text"
-                  : "glass-card text-secondary hover:text-primary"
+                  ? "bg-accent/20 border-accent/30 border text-accent shadow-md scale-[1.02]"
+                  : "glass-card text-secondary hover:text-primary hover:bg-hover border border-transparent"
               )}
               title={p.description}
             >
               <span>{p.label}</span>
               <span className={cn(
-                "text-[9px] mt-0.5",
-                p.id === settings.preset ? "text-accent-text/70" : "text-tertiary"
+                "text-[9px] mt-0.5 transition-colors",
+                p.id === settings.preset ? "text-accent/90" : "text-tertiary"
               )}>{p.description}</span>
             </button>
           ))}
@@ -169,14 +171,13 @@ export function CompressionSettings({ settings, mediaInfo, onChange, outputName,
                   <label className="text-[11px] font-medium text-tertiary uppercase tracking-wider">Video Quality</label>
                   <span className="text-[12px] font-mono text-secondary">CRF {settings.quality}</span>
                 </div>
-                <input
-                  type="range"
+                <Slider
                   min={18}
                   max={40}
                   step={1}
-                  value={settings.quality}
-                  onChange={(e) => handleSettingChange({ quality: Number(e.target.value) })}
-                  className="w-full h-1.5 bg-progress-track rounded-full appearance-none cursor-pointer accent-accent"
+                  value={[settings.quality ?? 23]}
+                  onValueChange={(vals) => handleSettingChange({ quality: Array.isArray(vals) ? vals[0] : (vals as unknown as number) })}
+                  className="w-full mt-1.5"
                 />
                 <div className="flex justify-between">
                   <span className="text-[10px] text-tertiary">Visually Lossless</span>
@@ -216,25 +217,25 @@ export function CompressionSettings({ settings, mediaInfo, onChange, outputName,
                   label="Resolution"
                   value={settings.resolution}
                   options={COMPRESS_RESOLUTIONS}
-                  onChange={(v) => handleSettingChange({ resolution: v })}
+                  onChange={(v: string) => handleSettingChange({ resolution: v })}
                 />
                 <ChipGroup
                   label="Frame Rate"
                   value={settings.frameRate}
                   options={COMPRESS_FRAME_RATES}
-                  onChange={(v) => handleSettingChange({ frameRate: v })}
+                  onChange={(v: string) => handleSettingChange({ frameRate: v })}
                 />
                 <ChipGroup
                   label="Audio Track"
                   value={settings.audioMode}
                   options={AUDIO_MODES}
-                  onChange={(v) => handleSettingChange({ audioMode: v as Settings["audioMode"] })}
+                  onChange={(v: string) => handleSettingChange({ audioMode: v as Settings["audioMode"] })}
                 />
                 <LabeledSelect
                   label="Encoder Speed"
                   value={settings.encoderSpeed}
                   options={ENCODER_SPEEDS}
-                  onChange={(v) => handleSettingChange({ encoderSpeed: v })}
+                  onChange={(v: string) => handleSettingChange({ encoderSpeed: v })}
                 />
                 <ToggleRow
                   label="Hardware Acceleration"
@@ -271,10 +272,10 @@ export function CompressionSettings({ settings, mediaInfo, onChange, outputName,
                   key={b.id}
                   onClick={() => handleSettingChange({ audioBitrate: b.id })}
                   className={cn(
-                    "px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
+                    "px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all",
                     b.id === settings.audioBitrate
-                      ? "bg-accent text-accent-text"
-                      : "glass-card text-secondary hover:text-primary"
+                      ? "bg-accent/20 border-accent/20 border text-accent shadow-sm scale-[1.02]"
+                      : "glass-card text-secondary hover:text-primary hover:bg-hover"
                   )}
                 >
                   {b.label}
@@ -321,21 +322,13 @@ function ToggleRow({ label, sublabel, checked, disabled, onChange }: {
         <span className="text-[11px] font-medium text-tertiary uppercase tracking-wider">{label}</span>
         {sublabel && <span className="text-[10px] text-tertiary">{sublabel}</span>}
       </div>
-      <label className="relative inline-flex items-center cursor-pointer">
-        <input
-          type="checkbox"
+      <div className="flex items-center gap-3">
+        <Switch
           checked={checked}
+          onCheckedChange={onChange}
           disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="sr-only peer"
         />
-        <div className="w-9 h-5 bg-hover rounded-full peer peer-checked:bg-accent transition-colors peer-disabled:opacity-40">
-          <div className={cn(
-            "w-4 h-4 bg-primary rounded-full transition-transform mt-0.5",
-            checked ? "translate-x-[18px]" : "translate-x-0.5"
-          )} />
-        </div>
-      </label>
+      </div>
     </div>
   );
 }

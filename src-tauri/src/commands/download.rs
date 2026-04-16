@@ -306,8 +306,8 @@ pub async fn start_download(
         // Production: next to exe
         let prod = dir.join("ffmpeg-x86_64-pc-windows-msvc.exe");
         if prod.exists() { return Some(prod); }
-        // Dev mode: ../../binaries/
-        let dev = dir.join("../../binaries/ffmpeg-x86_64-pc-windows-msvc.exe");
+        // Dev mode: next to tauri.conf.json (in src-tauri root)
+        let dev = dir.join("../../ffmpeg-x86_64-pc-windows-msvc.exe");
         if dev.exists() { return Some(std::fs::canonicalize(&dev).unwrap_or(dev)); }
         None
     });

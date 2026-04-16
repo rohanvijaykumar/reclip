@@ -12,10 +12,10 @@ export function QualityChip({ label, selected, onClick, size }: Props) {
     <button
       onClick={onClick}
       className={cn(
-        "px-2 py-1 rounded-md transition-all font-medium flex flex-col items-center gap-0",
+        "px-2.5 py-1.5 rounded-lg transition-all font-medium flex flex-col items-center gap-0.5",
         selected
-          ? "bg-hover text-primary shadow-sm"
-          : "bg-transparent text-secondary hover:text-primary hover:bg-hover/50"
+          ? "bg-accent/20 border border-accent/30 text-accent font-bold scale-[1.02] shadow-sm"
+          : "bg-transparent text-secondary hover:text-primary hover:bg-hover"
       )}
     >
       <span className="text-[11px] leading-tight">{label}</span>

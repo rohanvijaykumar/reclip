@@ -68,7 +68,7 @@ export function ConversionSettings({ settings, mediaInfo, onChange, outputName, 
                 value={outputName}
                 onChange={(e) => onOutputNameChange(e.target.value)}
                 placeholder="Enter filename..."
-                className="flex-1 glass-card rounded-lg px-3 py-2 text-[13px] text-primary font-mono focus:outline-none focus:ring-1 focus:ring-accent"
+                className="flex-1 bg-raised/40 backdrop-blur-md rounded-xl px-3.5 py-2 text-[13px] text-primary font-mono ring-1 ring-subtle focus:outline-none focus:ring-accent/50 focus:bg-raised/70 transition-all placeholder:text-tertiary/50"
               />
               <span className="text-[12px] text-tertiary font-mono">.{settings.outputFormat}</span>
             </div>
@@ -93,9 +93,9 @@ export function ConversionSettings({ settings, mediaInfo, onChange, outputName, 
           onToggle={() => toggle("video")}
         >
           <div className="grid grid-cols-2 gap-4">
-            <LabeledSelect label="Codec" value={settings.videoCodec || "h264"} options={VIDEO_CODECS} onChange={(v) => onChange({ videoCodec: v })} />
-            <LabeledSelect label="Resolution" value={settings.resolution || "original"} options={RESOLUTIONS} onChange={(v) => onChange({ resolution: v })} disabled={isVideoCopyOrNone} />
-            <LabeledSelect label="Frame Rate" value={settings.frameRate || "original"} options={FRAME_RATES} onChange={(v) => onChange({ frameRate: v })} disabled={isVideoCopyOrNone} />
+            <LabeledSelect label="Codec" value={settings.videoCodec || "h264"} options={VIDEO_CODECS} onChange={(v: string) => onChange({ videoCodec: v })} />
+            <LabeledSelect label="Resolution" value={settings.resolution || "original"} options={RESOLUTIONS} onChange={(v: string) => onChange({ resolution: v })} disabled={isVideoCopyOrNone} />
+            <LabeledSelect label="Frame Rate" value={settings.frameRate || "original"} options={FRAME_RATES} onChange={(v: string) => onChange({ frameRate: v })} disabled={isVideoCopyOrNone} />
           </div>
           {!isVideoCopyOrNone && (
             <div className="mt-4 space-y-4">
@@ -107,10 +107,10 @@ export function ConversionSettings({ settings, mediaInfo, onChange, outputName, 
                   { id: "cbr", label: "Constant Bitrate" },
                   { id: "vbr", label: "Variable Bitrate" },
                 ]}
-                onChange={(v) => onChange({ bitrateMode: v })}
+                onChange={(v: string) => onChange({ bitrateMode: v })}
               />
               {settings.bitrateMode === "crf" && (
-                <LabeledSlider label="Quality (CRF)" value={settings.crfValue ?? 23} min={0} max={51} onChange={(v) => onChange({ crfValue: v })} />
+                <LabeledSlider label="Quality (CRF)" value={settings.crfValue ?? 23} min={0} max={51} onChange={(v: number) => onChange({ crfValue: v })} />
               )}
               {(settings.bitrateMode === "cbr" || settings.bitrateMode === "vbr") && (
                 <div className="flex flex-col gap-1.5">
@@ -140,14 +140,14 @@ export function ConversionSettings({ settings, mediaInfo, onChange, outputName, 
           onToggle={() => toggle("audio")}
         >
           <div className="grid grid-cols-2 gap-4">
-            <LabeledSelect label="Codec" value={settings.audioCodec || "aac"} options={AUDIO_CODECS} onChange={(v) => onChange({ audioCodec: v })} />
-            <LabeledSelect label="Bitrate" value={settings.audioBitrate || "192k"} options={AUDIO_BITRATES} onChange={(v) => onChange({ audioBitrate: v })} disabled={isAudioCopyOrNone || settings.audioCodec === "flac"} />
-            <LabeledSelect label="Sample Rate" value={settings.sampleRate || "original"} options={SAMPLE_RATES} onChange={(v) => onChange({ sampleRate: v })} disabled={isAudioCopyOrNone} />
-            <LabeledSelect label="Channels" value={settings.channels || "original"} options={CHANNEL_OPTIONS} onChange={(v) => onChange({ channels: v })} disabled={isAudioCopyOrNone} />
+            <LabeledSelect label="Codec" value={settings.audioCodec || "aac"} options={AUDIO_CODECS} onChange={(v: string) => onChange({ audioCodec: v })} />
+            <LabeledSelect label="Bitrate" value={settings.audioBitrate || "192k"} options={AUDIO_BITRATES} onChange={(v: string) => onChange({ audioBitrate: v })} disabled={isAudioCopyOrNone || settings.audioCodec === "flac"} />
+            <LabeledSelect label="Sample Rate" value={settings.sampleRate || "original"} options={SAMPLE_RATES} onChange={(v: string) => onChange({ sampleRate: v })} disabled={isAudioCopyOrNone} />
+            <LabeledSelect label="Channels" value={settings.channels || "original"} options={CHANNEL_OPTIONS} onChange={(v: string) => onChange({ channels: v })} disabled={isAudioCopyOrNone} />
           </div>
           {!isAudioCopyOrNone && (
             <div className="mt-4">
-              <LabeledSlider label="Volume" value={settings.volume ?? 0} min={-20} max={20} step={0.5} unit="dB" onChange={(v) => onChange({ volume: v })} />
+              <LabeledSlider label="Volume" value={settings.volume ?? 0} min={-20} max={20} step={0.5} unit="dB" onChange={(v: number) => onChange({ volume: v })} />
             </div>
           )}
         </Section>

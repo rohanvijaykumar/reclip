@@ -45,7 +45,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
   return (
     <div
       ref={ref}
-      className="fixed z-[100] min-w-[180px] bg-raised border border-subtle rounded-xl shadow-2xl p-1.5 animate-fade-in"
+      className="fixed z-[100] min-w-[180px] rounded-xl glass-panel p-1.5 text-primary shadow-2xl ring-1 ring-white/10 animate-in fade-in-0 zoom-in-95 duration-200"
       style={{ left: x, top: y }}
     >
       {items.map((item, i) => {
@@ -63,12 +63,12 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
             }}
             disabled={item.disabled}
             className={cn(
-              "w-full text-left px-3 py-2 text-[12px] font-medium rounded-lg transition-colors flex items-center gap-2.5",
+              "w-full text-left px-2 py-1.5 text-[13px] font-medium rounded-lg transition-colors flex items-center gap-2",
               item.disabled
-                ? "text-tertiary cursor-not-allowed"
+                ? "text-tertiary cursor-not-allowed opacity-50"
                 : item.danger
                   ? "text-error hover:bg-error/10"
-                  : "text-secondary hover:text-primary hover:bg-hover"
+                  : "hover:bg-hover hover:text-primary"
             )}
           >
             {item.icon && <span className="w-4 h-4 flex items-center justify-center shrink-0">{item.icon}</span>}

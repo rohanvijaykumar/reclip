@@ -14,6 +14,14 @@
   --theme-accent: #E85D2A;
   --theme-accent-hover: #F06E3D;
   --theme-accent-text: #FFFFFF;
+
+  /* App Mode Accents */
+  --accent-download: #E85D2A; /* Orange */
+  --accent-convert: #3B82F6; /* Blue */
+  --accent-compress: #A855F7; /* Purple */
+  --accent-history: #10B981; /* Green */
+  --accent-settings: #8B5CF6; /* Violet */
+
   --theme-success: #00FF6A;
   --theme-error: #EF6461;
   --theme-warning: #F59E0B;
@@ -26,6 +34,28 @@
   --theme-scrollbar-hover: rgba(255, 255, 255, 0.18);
   --theme-body-bg: #050505;
   --theme-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+
+  /* Shadcn / Watermelon UI integration */
+  --background: var(--theme-body-bg);
+  --foreground: var(--theme-primary);
+  --card: var(--theme-raised);
+  --card-foreground: var(--theme-primary);
+  --popover: var(--theme-raised);
+  --popover-foreground: var(--theme-primary);
+  --primary: var(--theme-accent);
+  --primary-foreground: var(--theme-accent-text);
+  --secondary: var(--theme-hover);
+  --secondary-foreground: var(--theme-primary);
+  --muted: var(--theme-hover);
+  --muted-foreground: var(--theme-secondary);
+  --accent: var(--theme-hover);
+  --accent-foreground: var(--theme-primary);
+  --destructive: var(--theme-error);
+  --destructive-foreground: #ffffff;
+  --border: var(--theme-glass-border);
+  --input: var(--theme-glass-border);
+  --ring: var(--theme-accent);
+  --radius: 0.75rem;
 }
 
 [data-theme="light"] {
@@ -36,11 +66,19 @@
   --theme-subtle: rgba(0, 0, 0, 0.06);
   --theme-focus: #C8C8CC;
   --theme-primary: #1A1A1A;
-  --theme-secondary: #6B6B6B;
-  --theme-tertiary: #9A9A9A;
+  --theme-secondary: #6B6B70;
+  --theme-tertiary: #9E9EA3;
   --theme-accent: #E85D2A;
-  --theme-accent-hover: #D14E1E;
+  --theme-accent-hover: #D65022;
   --theme-accent-text: #FFFFFF;
+
+  /* App Mode Accents */
+  --accent-download: #E85D2A;
+  --accent-convert: #2563EB;
+  --accent-compress: #9333EA;
+  --accent-history: #059669;
+  --accent-settings: #7C3AED;
+
   --theme-success: #10B981;
   --theme-error: #EF4444;
   --theme-warning: #D97706;
@@ -53,10 +91,32 @@
   --theme-scrollbar-hover: rgba(0, 0, 0, 0.2);
   --theme-body-bg: #EDEDED;
   --theme-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+
+  /* Shadcn / Watermelon UI integration */
+  --background: var(--theme-body-bg);
+  --foreground: var(--theme-primary);
+  --card: var(--theme-raised);
+  --card-foreground: var(--theme-primary);
+  --popover: var(--theme-raised);
+  --popover-foreground: var(--theme-primary);
+  --primary: var(--theme-accent);
+  --primary-foreground: var(--theme-accent-text);
+  --secondary: var(--theme-hover);
+  --secondary-foreground: var(--theme-primary);
+  --muted: var(--theme-hover);
+  --muted-foreground: var(--theme-secondary);
+  --accent: var(--theme-hover);
+  --accent-foreground: var(--theme-primary);
+  --destructive: var(--theme-error);
+  --destructive-foreground: #ffffff;
+  --border: var(--theme-glass-border);
+  --input: var(--theme-glass-border);
+  --ring: var(--theme-accent);
 }
 
 /* Tailwind v4 theme tokens → dynamic via CSS variables */
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme {
   --color-base: var(--theme-base);
@@ -75,24 +135,64 @@
   --color-error: var(--theme-error);
   --color-warning: var(--theme-warning);
   --color-progress-track: var(--theme-progress-track);
+  --color-convert: var(--accent-convert);
+  --color-compress: var(--accent-compress);
+
+  /* Shadcn variables mapping */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-shadcn-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-shadcn-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-shadcn-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Accordion animations */
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
+  }
 }
 
-body {
-  background-color: var(--theme-body-bg);
-  color: var(--theme-primary);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow: hidden;
+@layer base {
+  * { border-color: var(--theme-glass-border); }
+  body {
+    background-color: var(--theme-body-bg);
+    color: var(--theme-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
 }
 
 /* ===== GLASSMORPHIC UTILITIES ===== */
 
 @layer utilities {
-  /* Glass card: semi-transparent + blur + subtle border */
   .glass-card {
     background: var(--theme-glass-bg);
     backdrop-filter: blur(20px) saturate(180%);
@@ -101,7 +201,6 @@ body {
     box-shadow: var(--theme-card-shadow);
   }
 
-  /* Animated gradient border on hover */
   .glass-border {
     position: relative;
     overflow: visible;
@@ -138,13 +237,11 @@ body {
     );
   }
 
-  /* Accent glow */
   .glow-accent {
     box-shadow: 0 0 20px var(--theme-glass-glow),
                 0 0 40px var(--theme-glass-glow);
   }
 
-  /* Frosted panel (Download All bar, overlays) */
   .glass-panel {
     background: var(--theme-glass-bg);
     backdrop-filter: blur(24px) saturate(200%);
@@ -152,7 +249,6 @@ body {
     border: 1px solid var(--theme-glass-border);
   }
 
-  /* Noise texture overlay */
   .bg-noise {
     position: relative;
   }
@@ -167,12 +263,14 @@ body {
     mix-blend-mode: overlay;
   }
 
-  /* Shimmer loading skeleton */
   .shimmer {
     background: linear-gradient(90deg, var(--theme-hover) 0%, var(--theme-active) 50%, var(--theme-hover) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s linear infinite;
   }
+
+  .animate-accordion-down { animation: accordion-down 0.2s ease-out; }
+  .animate-accordion-up { animation: accordion-up 0.2s ease-out; }
 }
 
 /* ===== KEYFRAME ANIMATIONS ===== */

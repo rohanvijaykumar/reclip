@@ -4,8 +4,10 @@
   "version": "2.0.0",
   "identifier": "com.reclip.app",
   "build": {
-    "frontendDist": "../dist",
-    "beforeBuildCommand": "npm run build"
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
   },
   "app": {
     "windows": [
@@ -35,8 +37,8 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/yt-dlp",
-      "binaries/ffmpeg"
+      "yt-dlp",
+      "ffmpeg"
     ],
     "windows": {
       "nsis": {

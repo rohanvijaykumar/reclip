@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, HardDrive, LayoutGrid, Palette, Bell, Moon, Sun, Monitor, X, ClipboardCheck, Zap, RotateCcw, FileText, FolderTree, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useConfig } from "@/contexts/ConfigContext";
+import { Switch } from "./ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { FluidTabs } from "./ui/fluid-tabs";
 import { open } from "@tauri-apps/plugin-dialog";
 import * as tauri from "@/lib/tauri";
 import type { ReactNode } from "react";
@@ -62,8 +65,8 @@ export function SettingsView({ onBack }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-base text-primary animate-slide-in-right z-30 relative">
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-subtle bg-base sticky top-0 z-10">
+    <div className="flex flex-col h-full bg-transparent text-primary animate-slide-in-right z-30 relative">
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-subtle/50 bg-transparent sticky top-0 z-10 backdrop-blur-md">
         <button
           onClick={onBack}
           className="p-1.5 -ml-2 rounded-md hover:bg-hover text-secondary hover:text-primary transition-colors flex items-center gap-1"
@@ -77,6 +80,23 @@ export function SettingsView({ onBack }: Props) {
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="w-full space-y-10 pb-12">
+          {/* Appearance */}
+          <Section title="Appearance" icon={<Palette size={16} className="text-secondary" />}>
+            <Item label="Theme" description="Choose how ReClip looks.">
+              <div className="flex bg-transparent mt-2 sm:mt-0">
+                <FluidTabs
+                  tabs={[
+                    { id: "dark", label: "Dark", icon: <Moon size={14} /> },
+                    { id: "light", label: "Light", icon: <Sun size={14} /> },
+                    { id: "system", label: "Auto", icon: <Monitor size={14} /> },
+                  ]}
+                  defaultActive={config.theme}
+                  onChange={(val) => updateConfig({ theme: val as "dark" | "light" | "system" })}
+                />
+              </div>
+            </Item>
+          </Section>
+
           {/* Storage */}
           <Section title="Storage" icon={<HardDrive size={16} className="text-secondary" />}>
             <Item label="Download Location" description="Media files are automatically saved here.">
@@ -112,25 +132,25 @@ export function SettingsView({ onBack }: Props) {
           <Section title="Format Preferences" icon={<LayoutGrid size={16} className="text-secondary" />}>
             <Item label="Default Video Quality" description="Pre-selects this quality when fetching videos.">
               <div className="flex gap-2 mt-2 sm:mt-0 flex-wrap">
-                {[
-                  { id: "best", label: "Best" },
-                  { id: "4k", label: "4K" },
-                  { id: "1080p", label: "1080p" },
-                  { id: "720p", label: "720p" },
-                ].map((q) => (
-                  <button
-                    key={q.id}
-                    onClick={() => updateConfig({ defaultVideoQuality: q.id })}
-                    className={cn(
-                      "px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors border",
-                      q.id === config.defaultVideoQuality
-                        ? "bg-accent text-accent-text border-accent"
-                        : "glass-card text-secondary hover:text-primary hover:bg-hover"
-                    )}
-                  >
-                    {q.label}
-                  </button>
-                ))}
+                <Select
+                  value={config.defaultVideoQuality || undefined}
+                  onValueChange={(val) => { if (val) updateConfig({ defaultVideoQuality: val }); }}
+                >
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Select quality">
+                      {(() => {
+                        const labels: Record<string, string> = { best: "Best Quality", "4k": "4K (2160p)", "1080p": "1080p", "720p": "720p" };
+                        return labels[config.defaultVideoQuality] ?? config.defaultVideoQuality ?? "Select quality";
+                      })()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="best">Best Quality</SelectItem>
+                    <SelectItem value="4k">4K (2160p)</SelectItem>
+                    <SelectItem value="1080p">1080p</SelectItem>
+                    <SelectItem value="720p">720p</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </Item>
           </Section>
@@ -154,31 +174,6 @@ export function SettingsView({ onBack }: Props) {
             />
           </Section>
 
-          {/* Appearance */}
-          <Section title="Appearance" icon={<Palette size={16} className="text-secondary" />}>
-            <Item label="Theme" description="Choose how ReClip looks.">
-              <div className="flex bg-base/50 border border-subtle rounded-lg p-1 mt-2 sm:mt-0">
-                {[
-                  { id: "dark" as const, label: "Dark", icon: <Moon size={14} /> },
-                  { id: "light" as const, label: "Light", icon: <Sun size={14} /> },
-                  { id: "system" as const, label: "System", icon: <Monitor size={14} /> },
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => updateConfig({ theme: opt.id })}
-                    className={cn(
-                      "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
-                      config.theme === opt.id
-                        ? "bg-hover text-primary shadow-sm"
-                        : "text-tertiary hover:text-secondary"
-                    )}
-                  >
-                    {opt.icon} {opt.label}
-                  </button>
-                ))}
-              </div>
-            </Item>
-          </Section>
 
           {/* Performance */}
           <Section title="Performance" icon={<Zap size={16} className="text-secondary" />}>
@@ -193,9 +188,9 @@ export function SettingsView({ onBack }: Props) {
               }
             >
               <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                <ToggleSwitch
+                <Switch
                   checked={config.hwAccelEnabled && config.detectedGpu !== "software"}
-                  onChange={(v) => updateConfig({ hwAccelEnabled: v })}
+                  onCheckedChange={(v) => updateConfig({ hwAccelEnabled: v })}
                 />
               </div>
             </Item>
@@ -214,20 +209,24 @@ export function SettingsView({ onBack }: Props) {
           {/* Clipboard */}
           <Section title="Clipboard" icon={<ClipboardCheck size={16} className="text-secondary" />}>
             <Item label="Clipboard Watching" description="Automatically detect media URLs when you copy them.">
-              <ToggleSwitch
-                checked={config.clipboardWatchEnabled}
-                onChange={(v) => updateConfig({ clipboardWatchEnabled: v })}
-              />
+              <div className="mt-2 sm:mt-0">
+                <Switch
+                  checked={config.clipboardWatchEnabled}
+                  onCheckedChange={(v) => updateConfig({ clipboardWatchEnabled: v })}
+                />
+              </div>
             </Item>
           </Section>
 
           {/* Notifications */}
           <Section title="Notifications" icon={<Bell size={16} className="text-secondary" />}>
             <Item label="Desktop Notifications" description="Get notified when downloads finish or fail.">
-              <ToggleSwitch
-                checked={config.notificationsEnabled}
-                onChange={handleNotificationToggle}
-              />
+              <div className="mt-2 sm:mt-0">
+                <Switch
+                  checked={config.notificationsEnabled}
+                  onCheckedChange={handleNotificationToggle}
+                />
+              </div>
             </Item>
           </Section>
         </div>
@@ -378,26 +377,5 @@ function FolderRulesEditor({ rules, onChange }: { rules: Record<string, string>;
         </div>
       )}
     </div>
-  );
-}
-
-function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 mt-2 sm:mt-0",
-        checked ? "bg-accent" : "bg-hover border border-subtle"
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block h-4 w-4 rounded-full transition-transform",
-          checked ? "translate-x-6 bg-accent-text" : "translate-x-1 bg-secondary"
-        )}
-      />
-    </button>
   );
 }

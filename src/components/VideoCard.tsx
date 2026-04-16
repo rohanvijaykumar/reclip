@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
-import { AlertTriangle, Loader2, Download, CheckCircle2, FolderOpen, Pencil, TriangleAlert, Clock, RotateCcw, CheckSquare, Square } from "lucide-react";
+import { AlertTriangle, Loader2, Download, CheckCircle2, FolderOpen, Pencil, TriangleAlert, Clock, RotateCcw, CheckSquare, Square, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { fmtDur, fmtSize, friendlyError, detectPlatformFromUrl } from "@/lib/utils";
 import { ImageWithFallback } from "./ImageWithFallback";
 import { PlatformIcon } from "./PlatformIcon";
 import { AudioWaveform } from "./AudioWaveform";
 import { QualityChip } from "./QualityChip";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import * as tauri from "@/lib/tauri";
 import type { CardData, FormatCategory } from "@/types";
 
@@ -361,13 +363,31 @@ export function VideoCard({
                 ))}
               </div>
             )}
-            <button
-              onClick={onDownload}
-              disabled={isPlaylistItem && !isChecked}
-              className="h-[32px] px-4 glass-card hover:border-focus text-primary font-medium text-[12px] rounded-lg transition-all flex items-center gap-1.5 shrink-0 hover:shadow active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <Download className="w-3.5 h-3.5" /> Download
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={(e) => {
+                  if (onContextMenu) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                     // pass fake event to trigger floating ContextMenu exactly at the button
+                    onContextMenu({
+                      preventDefault: () => {},
+                      clientX: rect.right,
+                      clientY: rect.top,
+                    } as unknown as React.MouseEvent);
+                  }
+                }}
+                className="h-[32px] w-[32px] flex items-center justify-center glass-card hover:bg-hover text-secondary hover:text-primary rounded-lg transition-all hover:shadow active:scale-[0.98]"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onDownload}
+                disabled={isPlaylistItem && !isChecked}
+                className="h-[32px] px-4 glass-card hover:border-focus text-primary font-medium text-[12px] rounded-lg transition-all flex items-center gap-1.5 hover:shadow active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none bg-accent/10 border border-accent/20 hover:bg-accent/20"
+              >
+                <Download className="w-3.5 h-3.5" /> Download
+              </button>
+            </div>
           </div>
         )}
 
@@ -378,16 +398,16 @@ export function VideoCard({
           const g = Math.round(93 + (255 - 93) * (pct / 100));
           const b = Math.round(42 + (106 - 42) * (pct / 100));
           const barColor = `rgb(${r}, ${g}, ${b})`;
-          const glowColor = `rgba(${r}, ${g}, ${b}, 0.5)`;
+          const glowColor = `rgba(${r}, ${g}, ${b}, 0.6)`;
 
           return (
             <div className="mt-4 flex flex-col gap-2.5">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   {data.selectedFormatId && data.formats?.find((f) => f.id === data.selectedFormatId) && (
-                    <div className="glass-card px-2 py-0.5 rounded-md text-[11px] font-medium text-secondary opacity-50">
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-bold">
                       {data.formats.find((f) => f.id === data.selectedFormatId)!.label}
-                    </div>
+                    </Badge>
                   )}
                   {data.speed && <span className="text-[11px] text-secondary font-mono">{data.speed}</span>}
                   {data.eta && <span className="text-[11px] text-tertiary font-mono">ETA {data.eta}</span>}
@@ -396,14 +416,12 @@ export function VideoCard({
                   {pct > 0 ? `${Math.round(pct)}%` : "Starting..."}
                 </div>
               </div>
-              <div className="h-1.5 w-full bg-progress-track rounded-full overflow-hidden relative ring-1 ring-inset ring-white/5">
-                <div
-                  className="h-full transition-all duration-300 ease-out rounded-full"
-                  style={{ width: `${pct}%`, backgroundColor: barColor, boxShadow: `0 0 10px ${glowColor}` }}
-                >
-                  <div className="absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-r from-transparent to-white/40 animate-pulse-edge" />
-                </div>
-              </div>
+              <Progress 
+                value={pct} 
+                className="h-2 ring-1 ring-inset ring-white/10"
+                indicatorClassName="transition-all duration-300 ease-out"
+                indicatorStyle={{ backgroundColor: barColor, boxShadow: `0 0 12px ${glowColor}` }} 
+              />
             </div>
           );
         })()}
@@ -422,9 +440,12 @@ export function VideoCard({
                 <FolderOpen size={12} /> Show in folder
               </button>
             </div>
-            <div className="h-1.5 w-full bg-progress-track rounded-full overflow-hidden ring-1 ring-inset ring-white/5">
-              <div className="h-full w-full rounded-full" style={{ backgroundColor: "#00FF6A", boxShadow: "0 0 10px rgba(0, 255, 106, 0.7)" }} />
-            </div>
+            <Progress 
+              value={100} 
+              className="h-1.5 ring-1 ring-inset ring-white/10" 
+              indicatorClassName="bg-[#00FF6A]" 
+              indicatorStyle={{ boxShadow: "0 0 12px rgba(0, 255, 106, 0.7)" }} 
+            />
           </div>
         )}
       </div>

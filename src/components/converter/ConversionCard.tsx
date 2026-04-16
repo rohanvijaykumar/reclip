@@ -198,7 +198,7 @@ export function ConversionCard({ card, onStart, onCancel, onRemove }: Props) {
 
   // Ready state
   return (
-    <div className="glass-card rounded-xl p-4 animate-card-enter">
+    <div className="glass-card glass-border rounded-xl p-4 animate-card-enter hover:bg-convert/5 transition-all group overflow-hidden relative">
       <div className="flex items-center gap-4">
         <MediaPreview card={card} />
         <div className="flex-1 min-w-0">

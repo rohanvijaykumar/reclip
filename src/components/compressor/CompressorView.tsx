@@ -44,7 +44,7 @@ export function CompressorView({ isActive = true }: { isActive?: boolean }) {
   };
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className="flex flex-col gap-0 animate-fade-in py-1">
       {/* File Input */}
       <FileInput
         onFilesSelected={handleFilesSelected}

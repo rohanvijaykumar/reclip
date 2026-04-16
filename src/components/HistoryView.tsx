@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, FolderOpen, RotateCcw, Trash2, Clock, Download, ArrowLeftRight, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { FluidTabs } from "./ui/fluid-tabs";
 import { ImageWithFallback } from "./ImageWithFallback";
 import * as tauri from "@/lib/tauri";
 import type { HistoryEntry } from "@/types";
@@ -56,9 +57,9 @@ export function HistoryView({ onBack, onRedownload }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-base text-primary animate-slide-in-right z-30 relative">
+    <div className="flex flex-col h-full bg-transparent text-primary animate-slide-in-right z-30 relative">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-subtle bg-base sticky top-0 z-10">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-subtle/50 bg-transparent backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -81,51 +82,34 @@ export function HistoryView({ onBack, onRedownload }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="px-6 pt-4 pb-2">
-        <div className="flex glass-card rounded-lg p-1 w-fit">
-          <button
-            onClick={() => setActiveTab("downloads")}
-            className={cn(
-              "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
-              activeTab === "downloads"
-                ? "bg-hover text-primary shadow-sm"
-                : "text-tertiary hover:text-secondary"
-            )}
-          >
-            <Download size={14} /> Downloads
-            {downloads.length > 0 && (
-              <span className="text-[10px] bg-subtle px-1.5 py-0.5 rounded-full ml-0.5">{downloads.length}</span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("conversions")}
-            className={cn(
-              "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
-              activeTab === "conversions"
-                ? "bg-hover text-primary shadow-sm"
-                : "text-tertiary hover:text-secondary"
-            )}
-          >
-            <ArrowLeftRight size={14} /> Conversions
-            {conversions.length > 0 && (
-              <span className="text-[10px] bg-subtle px-1.5 py-0.5 rounded-full ml-0.5">{conversions.length}</span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("compressions")}
-            className={cn(
-              "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
-              activeTab === "compressions"
-                ? "bg-hover text-primary shadow-sm"
-                : "text-tertiary hover:text-secondary"
-            )}
-          >
-            <Minimize2 size={14} /> Compressions
-            {compressions.length > 0 && (
-              <span className="text-[10px] bg-subtle px-1.5 py-0.5 rounded-full ml-0.5">{compressions.length}</span>
-            )}
-          </button>
-        </div>
+      <div className="px-6 pt-4 pb-2 z-10 w-full overflow-x-auto">
+        <FluidTabs
+          tabs={[
+            { 
+              id: "downloads", 
+              label: "Downloads", 
+              icon: <Download size={14} />,
+              count: downloads.length > 0 ? downloads.length : undefined,
+              color: "var(--accent-download)",
+            },
+            { 
+              id: "conversions", 
+              label: "Conversions", 
+              icon: <ArrowLeftRight size={14} />,
+              count: conversions.length > 0 ? conversions.length : undefined,
+              color: "var(--accent-convert)",
+            },
+            { 
+              id: "compressions", 
+              label: "Compressions", 
+              icon: <Minimize2 size={14} />,
+              count: compressions.length > 0 ? compressions.length : undefined,
+              color: "var(--accent-compress)",
+            },
+          ]}
+          defaultActive={activeTab}
+          onChange={(id) => setActiveTab(id as HistoryTab)}
+        />
       </div>
 
       {/* Content */}

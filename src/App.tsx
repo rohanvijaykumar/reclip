@@ -12,6 +12,7 @@ import { ContextMenu } from "@/components/ContextMenu";
 import { PlaylistHeader } from "@/components/PlaylistHeader";
 import { SettingsView } from "@/components/SettingsView";
 import { HistoryView } from "@/components/HistoryView";
+import { MacOSSidebar, type SidebarItem } from "@/components/ui/macos-sidebar";
 import { EmptyState } from "@/components/EmptyState";
 import { ConverterView } from "@/components/converter/ConverterView";
 import { CompressorView } from "@/components/compressor/CompressorView";
@@ -19,8 +20,16 @@ import { VIDEO_FORMATS, AUDIO_FORMATS } from "@/types";
 import type { ContextMenuItem } from "@/types";
 import * as tauri from "@/lib/tauri";
 
-type ViewState = "main" | "settings" | "history";
-type Tab = "download" | "convert" | "compress";
+type UnifiedView = "download" | "convert" | "compress" | "history" | "settings";
+
+const SIDEBAR_ITEMS: SidebarItem[] = [
+  { id: "download", label: "Download", icon: <Download size={18} />, color: "var(--accent-download)" },
+  { id: "convert", label: "Convert", icon: <ArrowLeftRight size={18} />, color: "var(--accent-convert)" },
+  { id: "compress", label: "Compress", icon: <Minimize2 size={18} />, color: "var(--accent-compress)" },
+  { id: "sep1", label: "", isSeparator: true },
+  { id: "history", label: "History", icon: <FolderIcon size={18} />, color: "var(--accent-history)" },
+  { id: "settings", label: "Settings", icon: <SettingsIcon size={18} />, color: "var(--accent-settings)" },
+];
 
 interface ContextMenuState {
   x: number;
@@ -29,8 +38,7 @@ interface ContextMenuState {
 }
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<ViewState>("main");
-  const [activeTab, setActiveTab] = useState<Tab>("download");
+  const [activeView, setActiveView] = useState<UnifiedView>("download");
   const [urls, setUrls] = useState("");
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -56,8 +64,7 @@ export default function App() {
     const url = grabUrl();
     if (url) {
       setUrls(url);
-      setActiveTab("download");
-      setCurrentView("main");
+      setActiveView("download");
       setTimeout(() => fetchUrls(url), 50);
     }
   }, [grabUrl, fetchUrls]);
@@ -73,8 +80,7 @@ export default function App() {
 
   const handleRedownload = useCallback((url: string) => {
     setUrls(url);
-    setActiveTab("download");
-    setCurrentView("main");
+    setActiveView("download");
     setTimeout(() => fetchUrls(url), 100);
   }, [fetchUrls]);
 
@@ -146,208 +152,175 @@ export default function App() {
     return <div className="h-screen bg-base" />;
   }
 
-  // ─── Settings view ───
-  if (currentView === "settings") {
-    return (
-      <div className="h-screen flex flex-col bg-base bg-noise overflow-hidden">
-        <SettingsView onBack={() => setCurrentView("main")} />
-        {detection && <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />}
-      </div>
-    );
-  }
+  const getSidebarItem = () => SIDEBAR_ITEMS.find(s => s.id === activeView);
 
-  // ─── History view ───
-  if (currentView === "history") {
-    return (
-      <div className="h-screen flex flex-col bg-base bg-noise overflow-hidden">
-        <HistoryView onBack={() => setCurrentView("main")} onRedownload={handleRedownload} />
-        {detection && <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />}
-      </div>
-    );
-  }
-
-  // ─── Main view ───
   return (
-    <div className="h-screen flex flex-col bg-base bg-noise overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-5 shrink-0 flex justify-between items-start">
-        <div>
-          <h1 className="font-semibold text-2xl tracking-tight text-primary mb-1">ReClip</h1>
-          <p className="text-sm text-secondary">The cleanest way to save media locally.</p>
-          <div className="flex glass-card rounded-lg p-1 mt-3 w-fit">
-            <button
-              onClick={() => setActiveTab("download")}
-              className={cn(
-                "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
-                activeTab === "download"
-                  ? "bg-hover text-primary shadow-sm"
-                  : "text-tertiary hover:text-secondary"
-              )}
-            >
-              <Download size={14} /> Download
-            </button>
-            <button
-              onClick={() => setActiveTab("convert")}
-              className={cn(
-                "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
-                activeTab === "convert"
-                  ? "bg-hover text-primary shadow-sm"
-                  : "text-tertiary hover:text-secondary"
-              )}
-            >
-              <ArrowLeftRight size={14} /> Convert
-            </button>
-            <button
-              onClick={() => setActiveTab("compress")}
-              className={cn(
-                "px-4 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5",
-                activeTab === "compress"
-                  ? "bg-hover text-primary shadow-sm"
-                  : "text-tertiary hover:text-secondary"
-              )}
-            >
-              <Minimize2 size={14} /> Compress
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setCurrentView("history")}
-            className="p-2 rounded-lg hover:bg-hover text-secondary hover:text-primary transition-all border border-transparent hover:border-subtle"
-            title="Download History"
-          >
-            <Clock size={20} strokeWidth={2} />
-          </button>
-          <button
-            onClick={() => setCurrentView("settings")}
-            className="p-2 rounded-lg hover:bg-hover text-secondary hover:text-primary transition-all border border-transparent hover:border-subtle"
-            title="Settings"
-          >
-            <SettingsIcon size={20} strokeWidth={2} />
-          </button>
-        </div>
-      </div>
+    <div 
+      className="h-screen flex bg-base overflow-hidden transition-colors duration-500"
+      style={{ "--theme-accent": getSidebarItem()?.color || "var(--theme-primary)" } as React.CSSProperties}
+    >
+      <div className="absolute inset-0 z-0 bg-noise opacity-50 pointer-events-none" />
+      <MacOSSidebar
+        items={SIDEBAR_ITEMS}
+        activeId={activeView}
+        onSelect={(item) => setActiveView(item.id as UnifiedView)}
+        defaultOpen={true}
+        className="z-50"
+      >
+        <div className="flex-1 h-full flex flex-col bg-raised/30 backdrop-blur-3xl sm:rounded-l-3xl border-l border-subtle overflow-hidden relative shadow-2xl">
+          {/* Dynamic mode background tint */}
+          <div 
+            className="absolute inset-0 z-0 opacity-[0.03] transition-colors duration-500 pointer-events-none mix-blend-screen"
+            style={{ backgroundColor: "var(--theme-accent)" }}
+          />
 
-      {/* Tab content — ALL tabs always mounted, inactive hidden */}
-      <div className="flex-1 overflow-y-auto relative pb-20">
-        <div className="px-6">
-          <div className={activeTab !== "download" ? "hidden" : ""}>
-            <InputArea
-              urls={urls}
-              onUrlsChange={setUrls}
-              category={category}
-              outputFormat={outputFormat}
-              onCategoryChange={setCategory}
-              onOutputFormatChange={setOutputFormat}
-              onFetch={handleFetch}
-              isFetching={isFetching}
-            />
-            {cards.length === 0 && playlists.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <>
-                {playlists.map((pl) => (
-                  <PlaylistHeader
-                    key={pl.id}
-                    data={pl}
-                    cards={cards}
-                    category={category}
-                    onToggleAll={(checked) => toggleAllPlaylist(pl.id, checked)}
-                    onSetAllQuality={(fid) => {
-                      if (category === "video") {
-                        const height = parseInt(fid);
-                        cards.forEach((c, i) => {
-                          if (c.playlistId === pl.id && c.formats) {
-                            const match = c.formats.find((f) => f.height === height);
-                            if (match) pickFormat(i, match.id);
-                          }
-                        });
-                      } else {
-                        setAllPlaylistQuality(pl.id, fid);
-                      }
-                    }}
-                  />
-                ))}
-                <div className="flex flex-col gap-4">
-                  {cards.map((card, idx) => (
-                    <VideoCard
-                      key={`${card.url}-${idx}`}
-                      data={card}
-                      index={idx}
-                      formatLabel={formatDisplay}
-                      category={category}
-                      onDownload={() => downloadCard(idx)}
-                      onPickFormat={(fid) => pickFormat(idx, fid)}
-                      onRename={(name) => setCustomFilename(idx, name)}
-                      onDismissDuplicate={() => dismissDuplicate(idx)}
-                      onSkip={() => skipCard(idx)}
-                      onContextMenu={(e) => handleCardContextMenu(idx, e)}
-                      onToggleCheck={() => toggleCheck(idx)}
-                      draggable={card.status === "queued"}
-                      onDragStart={(e) => handleDragStart(idx, e)}
-                      onDragOver={handleDragOver}
-                      onDrop={() => handleDrop(idx)}
-                    />
-                  ))}
+          <main className="flex-1 overflow-y-auto relative z-10 custom-scrollbar h-full">
+            {activeView === "settings" && <SettingsView onBack={() => setActiveView("download")} />}
+            {activeView === "history" && <HistoryView onBack={() => setActiveView("download")} onRedownload={handleRedownload} />}
+            
+            {/* Toolkit Views */}
+            <div className={cn("h-full flex flex-col", activeView !== "download" && "hidden")}>
+              <header className="px-8 py-8 shrink-0 relative z-20">
+                <h1 className="font-semibold text-3xl tracking-tight text-primary mb-1.5">Download Media</h1>
+                <p className="text-[15px] text-tertiary">The cleanest way to save media locally.</p>
+              </header>
+              <div className="px-8 flex-1 pb-32">
+                <div className="max-w-4xl mx-auto space-y-8">
+                      <InputArea
+                        urls={urls}
+                        onUrlsChange={setUrls}
+                        category={category}
+                        outputFormat={outputFormat}
+                        onCategoryChange={setCategory}
+                        onOutputFormatChange={setOutputFormat}
+                        onFetch={handleFetch}
+                        isFetching={isFetching}
+                      />
+                      {cards.length === 0 && playlists.length === 0 ? (
+                        <EmptyState />
+                      ) : (
+                        <>
+                          {playlists.map((pl) => (
+                            <PlaylistHeader
+                              key={pl.id}
+                              data={pl}
+                              cards={cards}
+                              category={category}
+                              onToggleAll={(checked) => toggleAllPlaylist(pl.id, checked)}
+                              onSetAllQuality={(fid) => {
+                                if (category === "video") {
+                                  const height = parseInt(fid);
+                                  cards.forEach((c, i) => {
+                                    if (c.playlistId === pl.id && c.formats) {
+                                      const match = c.formats.find((f) => f.height === height);
+                                      if (match) pickFormat(i, match.id);
+                                    }
+                                  });
+                                } else {
+                                  setAllPlaylistQuality(pl.id, fid);
+                                }
+                              }}
+                            />
+                          ))}
+                          <div className="flex flex-col gap-4">
+                            {cards.map((card, idx) => (
+                              <VideoCard
+                                key={`${card.url}-${idx}`}
+                                data={card}
+                                index={idx}
+                                formatLabel={formatDisplay}
+                                category={category}
+                                onDownload={() => downloadCard(idx)}
+                                onPickFormat={(fid) => pickFormat(idx, fid)}
+                                onRename={(name) => setCustomFilename(idx, name)}
+                                onDismissDuplicate={() => dismissDuplicate(idx)}
+                                onSkip={() => skipCard(idx)}
+                                onContextMenu={(e) => handleCardContextMenu(idx, e)}
+                                onToggleCheck={() => toggleCheck(idx)}
+                                draggable={card.status === "queued"}
+                                onDragStart={(e) => handleDragStart(idx, e)}
+                                onDragOver={handleDragOver}
+                                onDrop={() => handleDrop(idx)}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                {/* Bottom bar for Download View */}
+                <div className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none">
+                  <div className="px-8 pb-6 flex justify-between items-center pointer-events-auto">
+                    <button
+                      onClick={() => tauri.openDownloadFolder()}
+                      className="flex items-center gap-2 px-3 py-2 text-[12px] font-medium text-tertiary hover:text-primary rounded-lg hover:bg-hover/50 transition-all glass-card"
+                    >
+                      <FolderOpen size={14} />
+                      {config.downloadPath
+                        ? config.downloadPath.split(/[/\\]/).pop()
+                        : "Downloads"}
+                    </button>
+                  </div>
+                  {showBar && (
+                    <div className="px-8 pb-8 pointer-events-auto">
+                      <DownloadAllBar
+                        cards={cards}
+                        category={category}
+                        readyCount={readyCount}
+                        queuedCount={queuedCount}
+                        downloadingCount={downloadingCount}
+                        doneCount={doneCount}
+                        errorCount={errorCount}
+                        allDoneFlash={allDoneFlash}
+                        onDownloadAll={downloadAll}
+                        onRetryFailed={retryFailed}
+                        onSetAllQuality={setAllQuality}
+                      />
+                    </div>
+                  )}
                 </div>
-              </>
-            )}
-          </div>
+              </div>
 
-          <div className={activeTab !== "convert" ? "hidden" : ""}>
-            <ConverterView isActive={activeTab === "convert"} />
-          </div>
+                {/* Convert View */}
+                <div className={cn("h-full flex flex-col", activeView !== "convert" && "hidden")}>
+                  <header className="px-8 py-8 shrink-0 relative z-20">
+                    <h1 className="font-semibold text-3xl tracking-tight text-primary mb-1.5">Converter</h1>
+                    <p className="text-[15px] text-tertiary">Lossless format conversion engine.</p>
+                  </header>
+                  <div className="px-8 flex-1 pb-24 overflow-y-auto">
+                    <div className="max-w-4xl mx-auto">
+                      <ConverterView isActive={activeView === "convert"} />
+                    </div>
+                  </div>
+                </div>
 
-          <div className={activeTab !== "compress" ? "hidden" : ""}>
-            <CompressorView isActive={activeTab === "compress"} />
-          </div>
-        </div>
-      </div>
+                {/* Compress View */}
+                <div className={cn("h-full flex flex-col", activeView !== "compress" && "hidden")}>
+                  <header className="px-8 py-8 shrink-0 relative z-20">
+                    <h1 className="font-semibold text-3xl tracking-tight text-primary mb-1.5">Compressor</h1>
+                    <p className="text-[15px] text-tertiary">Smart media size reduction.</p>
+                  </header>
+                  <div className="px-8 flex-1 pb-24 overflow-y-auto">
+                    <div className="max-w-4xl mx-auto">
+                      <CompressorView isActive={activeView === "compress"} />
+                    </div>
+                  </div>
+                </div>
+              </main>
 
-      {/* Bottom bar */}
-      {activeTab === "download" && (
-        <div className="absolute bottom-0 left-0 right-0 z-30">
-          <div className="px-6 pb-4 flex justify-between items-center">
-            <button
-              onClick={() => tauri.openDownloadFolder()}
-              className="flex items-center gap-2 px-3 py-2 text-[12px] font-medium text-tertiary hover:text-primary rounded-lg hover:bg-hover/50 transition-all"
-            >
-              <FolderOpen size={14} />
-              {config.downloadPath
-                ? config.downloadPath.split(/[/\\]/).pop()
-                : "Downloads"}
-            </button>
-          </div>
-          {showBar && (
-            <div className="px-6 pb-6">
-              <DownloadAllBar
-                cards={cards}
-                category={category}
-                readyCount={readyCount}
-                downloadingCount={downloadingCount}
-                queuedCount={queuedCount}
-                doneCount={doneCount}
-                errorCount={errorCount}
-                allDoneFlash={allDoneFlash}
-                onDownloadAll={downloadAll}
-                onRetryFailed={retryFailed}
-                onSetAllQuality={setAllQuality}
-              />
-            </div>
+          {contextMenu && (
+            <ContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              items={getContextMenuItems(contextMenu.cardIndex)}
+              onClose={() => setContextMenu(null)}
+            />
           )}
+
+          {detection && <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />}
         </div>
-      )}
-
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          items={getContextMenuItems(contextMenu.cardIndex)}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
-
-      {detection && <ClipboardToast detection={detection} onGrab={handleGrab} onDismiss={dismissToast} />}
+      </MacOSSidebar>
     </div>
   );
 }

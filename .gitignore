@@ -8,9 +8,9 @@ dist/
 src-tauri/target/
 
 # Sidecar binaries (downloaded, not committed)
-src-tauri/binaries/*.exe
-src-tauri/binaries/*-darwin
-src-tauri/binaries/*-linux
+src-tauri/*.exe
+src-tauri/*-darwin
+src-tauri/*-linux
 
 # Environment
 .env

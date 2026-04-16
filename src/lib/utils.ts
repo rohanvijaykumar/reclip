@@ -1,3 +1,16 @@
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+/**
+ * Utility function for merging Tailwind CSS classes with clsx and tailwind-merge.
+ * This is required by shadcn/ui and Watermelon components.
+ */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// --- Restored utility functions ---
+
 export function parseUrls(text: string): string[] {
   return [
     ...new Set(
