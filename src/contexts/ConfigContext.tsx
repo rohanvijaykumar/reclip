@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { AppConfig, GpuDetectionResult } from "@/types";
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -38,6 +39,14 @@ function applyTheme(theme: string) {
         : "light"
       : theme;
   document.documentElement.setAttribute("data-theme", resolved);
+
+  // Match the native title bar to the app theme
+  try {
+    const win = getCurrentWebviewWindow();
+    win.setTheme(resolved === "dark" ? "dark" : "light").catch(() => {});
+  } catch {
+    // Window not available yet
+  }
 }
 
 export function ConfigProvider({ children }: { children: ReactNode }) {

@@ -70,9 +70,9 @@ fn main() {
                 cleanup_webview_cache(&handle);
             });
 
-            // Maximize then show — window starts hidden to avoid position glitch
+            // Center then show — window starts hidden to avoid position glitch
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.maximize();
+                let _ = window.center();
                 let _ = window.show();
             }
 

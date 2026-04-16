@@ -1,7 +1,7 @@
 import { ListVideo, CheckSquare, Square } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { fmtDur } from "@/lib/utils";
-import { QualityChip } from "./QualityChip";
+import { QualitySelector } from "./QualityChip";
 import type { PlaylistHeaderData, FormatCategory, CardData } from "@/types";
 
 interface Props {
@@ -79,33 +79,20 @@ export function PlaylistHeader({ data, cards, category, onToggleAll, onSetAllQua
 
         {/* Bulk quality selector */}
         {category === "video" && commonFormats.length > 0 && (
-          <div className="flex gap-1.5 flex-wrap glass-card p-1 rounded-lg">
-            <span className="text-[10px] text-tertiary px-1.5 py-1 font-medium">All:</span>
-            {commonFormats.map((f) => (
-              <QualityChip
-                key={f.id}
-                label={f.label}
-                selected={false}
-                onClick={() => {
-                  // Find the closest format id for each card at this height
-                  onSetAllQuality(f.id);
-                }}
-              />
-            ))}
-          </div>
+          <QualitySelector
+            formats={commonFormats.map((f) => ({ id: f.id, label: f.label }))}
+            selectedId={undefined}
+            onSelect={onSetAllQuality}
+            layoutPrefix={`playlist-video-${data.id}`}
+          />
         )}
         {category === "audio" && (
-          <div className="flex gap-1.5 flex-wrap glass-card p-1 rounded-lg">
-            <span className="text-[10px] text-tertiary px-1.5 py-1 font-medium">All:</span>
-            {audioQualities.map((q) => (
-              <QualityChip
-                key={q.id}
-                label={q.label}
-                selected={false}
-                onClick={() => onSetAllQuality(q.id)}
-              />
-            ))}
-          </div>
+          <QualitySelector
+            formats={audioQualities}
+            selectedId={undefined}
+            onSelect={onSetAllQuality}
+            layoutPrefix={`playlist-audio-${data.id}`}
+          />
         )}
       </div>
     </div>

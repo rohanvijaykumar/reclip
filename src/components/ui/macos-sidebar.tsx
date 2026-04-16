@@ -44,13 +44,32 @@ export function MacOSSidebar({
           width: isOpen ? 240 : 64,
         }}
         transition={{ type: "spring", bounce: 0.4, duration: 0.8 }}
-        className={`p-2 rounded-2xl shrink-0 flex flex-col items-start transition-colors duration-900 ease-out ${
-          isOpen ? "bg-raised dark:bg-raised shadow-sm border border-subtle" : "bg-transparent"
+        className={`p-2 pt-11 shrink-0 flex flex-col items-start transition-colors duration-900 ease-out ${
+          isOpen ? "bg-raised dark:bg-raised shadow-sm border-r border-subtle" : "bg-transparent"
         }`}
       >
+        {/* App branding + sidebar toggle */}
         <div
-          className={`flex items-center w-full justify-end text-secondary dark:text-secondary p-4 shrink-0`}
+          className="flex items-center w-full justify-between text-secondary p-4 pt-1 shrink-0"
+          data-tauri-drag-region
         >
+          <AnimatePresence>
+            {isOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex items-center gap-2.5"
+              >
+                <svg width="28" height="28" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+                  <circle cx="64" cy="64" r="53.336" fill="#e85d2a"/>
+                  <path d="m53.008 49.051 26.996 14.949-26.996 14.949z" fill="#fff"/>
+                </svg>
+                <span className="text-[16px] font-bold tracking-tight text-primary">ReClip</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <motion.div
             layout
             className="shrink-0 flex items-center justify-center"

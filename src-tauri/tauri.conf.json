@@ -13,14 +13,14 @@
     "windows": [
       {
         "title": "ReClip",
-        "width": 800,
-        "height": 850,
+        "width": 1200,
+        "height": 650,
         "minWidth": 500,
         "minHeight": 600,
         "visible": false,
         "maximizable": true,
         "resizable": true,
-        "decorations": true
+        "decorations": false
       }
     ],
     "security": {

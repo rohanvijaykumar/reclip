@@ -1,7 +1,10 @@
-import { Download, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
-import { cn } from "@/lib/cn";
-import { QualityChip } from "./QualityChip";
+import { Download, CheckCircle2, AlertTriangle, RotateCcw, FolderOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { QualitySelector } from "./QualityChip";
 import type { FormatCategory, CardData } from "@/types";
+import * as tauri from "@/lib/tauri";
 
 interface Props {
   cards: CardData[];
@@ -12,6 +15,7 @@ interface Props {
   doneCount: number;
   errorCount: number;
   allDoneFlash: boolean;
+  downloadPath: string | undefined;
   onDownloadAll: () => void;
   onRetryFailed: () => void;
   onSetAllQuality: (formatId: string) => void;
@@ -19,13 +23,13 @@ interface Props {
 
 export function DownloadAllBar({
   cards, category, readyCount, downloadingCount, queuedCount, doneCount, errorCount,
-  allDoneFlash, onDownloadAll, onRetryFailed, onSetAllQuality,
+  allDoneFlash, downloadPath, onDownloadAll, onRetryFailed, onSetAllQuality,
 }: Props) {
   const isActive = downloadingCount > 0 || queuedCount > 0;
   const hasErrors = errorCount > 0 && !isActive;
   const allDone = allDoneFlash;
+  const showStatus = readyCount >= 2 || isActive || allDone || (hasErrors && doneCount > 0);
 
-  // Find common quality options for bulk selector
   const readyCards = cards.filter((c) => c.status === "ready" && c.formats && c.formats.length > 0);
   const commonHeights = (() => {
     if (readyCards.length === 0) return [];
@@ -40,97 +44,94 @@ export function DownloadAllBar({
     { id: "192", label: "192kbps" },
     { id: "128", label: "128kbps" },
   ];
-
   const qualities = category === "video" ? videoQualities : audioQualities;
 
-  // All done state
-  if (allDone && !hasErrors) {
-    return (
-      <div className="glass-panel shadow-2xl rounded-xl p-4 flex items-center justify-center ring-1 ring-success/20 animate-card-enter opacity-0">
-        <div className="flex items-center gap-2 text-success font-semibold text-[14px]">
-          <CheckCircle2 size={18} /> All downloads complete
-        </div>
-      </div>
-    );
-  }
-
-  // Error state (after all done, some failed)
-  if (hasErrors && doneCount > 0) {
-    return (
-      <div className="glass-panel shadow-2xl rounded-xl p-4 flex items-center justify-between ring-1 ring-white/5 glow-accent">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-success text-[13px] font-medium">
-            <CheckCircle2 size={16} /> {doneCount} saved
-          </div>
-          <div className="flex items-center gap-2 text-error text-[13px] font-medium">
-            <AlertTriangle size={16} /> {errorCount} failed
-          </div>
-        </div>
-        <button
-          onClick={onRetryFailed}
-          className="h-10 px-5 bg-accent hover:bg-accent-hover active:scale-[0.98] text-accent-text font-semibold text-[13px] rounded-lg transition-all shadow-md flex items-center gap-2"
-        >
-          <RotateCcw size={14} /> Retry Failed
-        </button>
-      </div>
-    );
-  }
-
-  // Active downloading state
-  if (isActive) {
-    return (
-      <div className="glass-panel shadow-2xl rounded-xl p-4 flex items-center justify-between ring-1 ring-white/5">
-        <div className="flex items-center gap-3">
-          {downloadingCount > 0 && (
-            <span className="text-[13px] font-medium text-primary flex items-center gap-1.5">
-              <Download size={14} className="text-accent" /> {downloadingCount} downloading
-            </span>
-          )}
-          {queuedCount > 0 && (
-            <span className="text-[13px] text-secondary">
-              {queuedCount} queued
-            </span>
-          )}
-        </div>
-        {doneCount > 0 && (
-          <span className="text-[13px] font-medium text-success flex items-center gap-1.5">
-            <CheckCircle2 size={14} /> {doneCount} done
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  // Ready state (normal)
-  if (readyCount < 2) return null;
+  const folderLabel = downloadPath
+    ? downloadPath.split(/[/\\]/).pop()
+    : "Downloads";
 
   return (
-    <div className="glass-panel shadow-2xl rounded-xl p-4 flex items-center justify-between gap-4 ring-1 ring-white/5 glow-accent">
-      {/* Left: count */}
-      <span className="text-[14px] font-medium text-primary shrink-0">{readyCount} items ready</span>
+    <div className="glass-panel rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 ring-1 ring-white/5">
+      {/* Left: always-visible folder button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => tauri.openDownloadFolder()}
+        className="text-[11px] text-muted-foreground h-7 px-2 gap-1.5"
+      >
+        <FolderOpen size={13} />
+        {folderLabel}
+      </Button>
 
-      {/* Center: bulk quality chips */}
-      {qualities.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap glass-card p-1 rounded-lg">
-          <span className="text-[10px] text-tertiary px-1.5 py-1 font-medium">All:</span>
-          {qualities.map((q) => (
-            <QualityChip
-              key={q.id}
-              label={q.label}
-              selected={false}
-              onClick={() => onSetAllQuality(q.id)}
-            />
-          ))}
+      {/* Right: dynamic status content */}
+      {showStatus && (
+        <div className="flex items-center gap-2">
+          {/* All done */}
+          {allDone && !hasErrors && (
+            <Badge variant="secondary" className="bg-success/10 text-success border-success/20 text-[11px] gap-1 animate-fade-in">
+              <CheckCircle2 size={12} /> All complete
+            </Badge>
+          )}
+
+          {/* Error + done mixed */}
+          {hasErrors && doneCount > 0 && !allDone && (
+            <>
+              <Badge variant="secondary" className="bg-success/10 text-success border-success/20 text-[11px] gap-1">
+                <CheckCircle2 size={12} /> {doneCount} saved
+              </Badge>
+              <Badge variant="secondary" className="bg-destructive/10 text-destructive border-destructive/20 text-[11px] gap-1">
+                <AlertTriangle size={12} /> {errorCount} failed
+              </Badge>
+              <Button size="sm" onClick={onRetryFailed} className="h-7 text-[11px] gap-1 px-3">
+                <RotateCcw size={12} /> Retry
+              </Button>
+            </>
+          )}
+
+          {/* Active downloading */}
+          {isActive && !allDone && !(hasErrors && doneCount > 0) && (
+            <>
+              {downloadingCount > 0 && (
+                <Badge variant="outline" className="text-[11px] gap-1">
+                  <Download size={12} className="text-[var(--theme-accent)]" /> {downloadingCount} downloading
+                </Badge>
+              )}
+              {queuedCount > 0 && (
+                <Badge variant="secondary" className="text-[11px]">
+                  {queuedCount} queued
+                </Badge>
+              )}
+              {doneCount > 0 && (
+                <Badge variant="secondary" className="bg-success/10 text-success border-success/20 text-[11px] gap-1">
+                  <CheckCircle2 size={12} /> {doneCount} done
+                </Badge>
+              )}
+            </>
+          )}
+
+          {/* Ready state */}
+          {!isActive && !allDone && !(hasErrors && doneCount > 0) && readyCount >= 2 && (
+            <>
+              <span className="text-[12px] font-medium text-foreground shrink-0">{readyCount} ready</span>
+
+              {qualities.length > 0 && (
+                <div className="hidden sm:block">
+                  <QualitySelector
+                    formats={qualities}
+                    selectedId={undefined}
+                    onSelect={onSetAllQuality}
+                    layoutPrefix="bulk-quality"
+                  />
+                </div>
+              )}
+
+              <Button size="sm" onClick={onDownloadAll} className="h-7 text-[11px] gap-1.5 px-3">
+                <Download size={13} /> Download All
+              </Button>
+            </>
+          )}
         </div>
       )}
-
-      {/* Right: download button */}
-      <button
-        onClick={onDownloadAll}
-        className="h-10 px-6 bg-accent hover:bg-accent-hover active:scale-[0.98] text-accent-text font-semibold text-[13px] rounded-lg transition-all shadow-md flex items-center gap-2 shrink-0"
-      >
-        <Download size={16} /> Download All
-      </button>
     </div>
   );
 }

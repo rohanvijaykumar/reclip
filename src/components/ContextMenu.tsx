@@ -45,7 +45,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
   return (
     <div
       ref={ref}
-      className="fixed z-[100] min-w-[180px] rounded-xl glass-panel p-1.5 text-primary shadow-2xl ring-1 ring-white/10 animate-in fade-in-0 zoom-in-95 duration-200"
+      className="fixed z-[100] min-w-[180px] rounded-xl glass-panel p-1.5 text-primary shadow-2xl ring-1 ring-white/10"
       style={{ left: x, top: y }}
     >
       {items.map((item, i) => {

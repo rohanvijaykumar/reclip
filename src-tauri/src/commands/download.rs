@@ -118,7 +118,7 @@ pub async fn get_playlist_info(app: AppHandle, url: String) -> Result<PlaylistIn
     let is_youtube = url.contains("youtube.com") || url.contains("youtu.be");
     if is_youtube {
         args.insert(args.len() - 2, "--extractor-args".into());
-        args.insert(args.len() - 2, "youtube:player_client=ios,web".into());
+        args.insert(args.len() - 2, "youtube:player_client=mweb,default".into());
     }
     if let Some(ref browser) = cfg.cookies_browser {
         if !browser.is_empty() && browser != "none" {
@@ -214,7 +214,7 @@ pub async fn get_info(app: AppHandle, url: String) -> Result<VideoInfo, String> 
     let is_youtube = url.contains("youtube.com") || url.contains("youtu.be");
     if is_youtube {
         args.insert(args.len() - 2, "--extractor-args".into());
-        args.insert(args.len() - 2, "youtube:player_client=ios,web".into());
+        args.insert(args.len() - 2, "youtube:player_client=mweb,default".into());
     }
     if let Some(ref browser) = cfg.cookies_browser {
         if !browser.is_empty() && browser != "none" {
@@ -357,9 +357,15 @@ pub async fn start_download(
         let triple = dir.join("ffmpeg-x86_64-pc-windows-msvc.exe");
         if triple.exists() { return Some(triple); }
 
-        // 3. Dev mode: Check in src-tauri root
-        let dev = dir.join("ffmpeg-x86_64-pc-windows-msvc.exe");
-        if dev.exists() { return Some(dev); }
+        // 3. Dev mode: Walk up to src-tauri root (handles target/debug/release nesting)
+        let mut ancestor = dir.to_path_buf();
+        while let Some(parent) = ancestor.parent() {
+            ancestor = parent.to_path_buf();
+            let dev = ancestor.join("ffmpeg-x86_64-pc-windows-msvc.exe");
+            if dev.exists() { return Some(dev); }
+            let dev_plain = ancestor.join("ffmpeg.exe");
+            if dev_plain.exists() { return Some(dev_plain); }
+        }
 
         // 4. Fallback: Ask Tauri for the resource folder (if bundled)
         app.path().resource_dir().ok().map(|d| d.join("ffmpeg-x86_64-pc-windows-msvc.exe")).filter(|p| p.exists())
@@ -373,6 +379,8 @@ pub async fn start_download(
     // Build yt-dlp args
     let mut args: Vec<String> = vec![
         "--no-playlist".into(),
+        "--no-warnings".into(),
+        "--no-check-certificates".into(),
         "--newline".into(),
         "--progress-template".into(),
         "download:DLP%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s".into(),
@@ -380,7 +388,7 @@ pub async fn start_download(
 
     let is_youtube = url.contains("youtube.com") || url.contains("youtu.be");
     if is_youtube {
-        args.extend(["--extractor-args".into(), "youtube:player_client=ios,web".into()]);
+        args.extend(["--extractor-args".into(), "youtube:player_client=mweb,default".into()]);
     }
 
     if let Some(ref browser) = cfg.cookies_browser {
@@ -560,10 +568,11 @@ pub async fn start_download(
                         // Clean up .part files and any other temp fragments
                         cleanup_temp_files(&dl_dir, &jid);
 
-                        let err_msg = stderr_lines
-                            .last()
-                            .cloned()
-                            .unwrap_or_else(|| "Download failed".to_string());
+                        let err_msg = if stderr_lines.is_empty() {
+                            "Download failed".to_string()
+                        } else {
+                            stderr_lines.join("\n")
+                        };
                         store.mark_error(&jid, err_msg.clone()).await;
                         let _ = app_handle.emit(
                             "download-error",
@@ -605,17 +614,6 @@ pub async fn start_download(
                         })
                         .unwrap_or(&files[0])
                         .clone();
-
-                    // Clean up extra files (other format variants)
-                    for f in &files {
-                        if f != &chosen {
-                            let _ = std::fs::remove_file(f);
-                        }
-                    }
-
-                    // Also clean up any .part/.temp fragments the glob may have missed
-                    // (yt-dlp names fragments like {id}.f303.part, {id}.f251.part, etc.)
-                    cleanup_temp_files(&dl_dir, &jid);
 
                     // Build filename from template
                     let ext_str = chosen
@@ -676,6 +674,7 @@ pub async fn start_download(
                     } else {
                         dest
                     };
+                    // Move file to save dir BEFORE cleanup (cleanup glob matches all job files)
                     let saved_path_str = match std::fs::rename(&chosen, &final_dest) {
                         Ok(_) => final_dest.to_string_lossy().to_string(),
                         Err(_) => {
@@ -689,6 +688,9 @@ pub async fn start_download(
                             }
                         }
                     };
+
+                    // Clean up all remaining temp/part files and extra format variants
+                    cleanup_temp_files(&dl_dir, &jid);
 
                     // Append to download history
                     let entry = HistoryEntry {

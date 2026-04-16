@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
-import { AlertTriangle, Loader2, Download, CheckCircle2, FolderOpen, Pencil, TriangleAlert, Clock, RotateCcw, CheckSquare, Square, MoreHorizontal } from "lucide-react";
+import { AlertTriangle, Loader2, Download, CheckCircle2, FolderOpen, Pencil, TriangleAlert, Clock, RotateCcw, CheckSquare, Square, Copy, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { fmtDur, fmtSize, friendlyError, detectPlatformFromUrl } from "@/lib/utils";
 import { ImageWithFallback } from "./ImageWithFallback";
 import { PlatformIcon } from "./PlatformIcon";
 import { AudioWaveform } from "./AudioWaveform";
-import { QualityChip } from "./QualityChip";
+import { QualitySelector } from "./QualityChip";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import * as tauri from "@/lib/tauri";
@@ -21,7 +22,8 @@ interface Props {
   onRename: (name: string) => void;
   onDismissDuplicate?: () => void;
   onSkip?: () => void;
-  onContextMenu?: (e: React.MouseEvent) => void;
+  onCopyUrl?: () => void;
+  onRemove?: () => void;
   onToggleCheck?: () => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
@@ -32,13 +34,8 @@ interface Props {
 export function VideoCard({
   data, index, formatLabel, category,
   onDownload, onPickFormat, onRename, onDismissDuplicate, onSkip,
-  onContextMenu, onToggleCheck, draggable, onDragStart, onDragOver, onDrop,
+  onCopyUrl, onRemove, onToggleCheck, draggable, onDragStart, onDragOver, onDrop,
 }: Props) {
-
-  const handleContext = (e: React.MouseEvent) => {
-    e.preventDefault();
-    onContextMenu?.(e);
-  };
 
   const platform = useMemo(() => detectPlatformFromUrl(data.url), [data.url]);
   const isAudio = category === "audio";
@@ -49,7 +46,6 @@ export function VideoCard({
       <div
         className="glass-card rounded-xl p-4 flex gap-5 animate-card-enter opacity-0"
         style={{ animationDelay: `${index * 100}ms` }}
-        onContextMenu={handleContext}
       >
         <div className="w-[140px] h-[80px] rounded-lg shrink-0 shimmer" />
         <div className="flex-1 flex flex-col justify-between py-1">
@@ -72,25 +68,36 @@ export function VideoCard({
       <div
         className="glass-card border-error/20 rounded-xl p-4 flex gap-5 animate-card-enter opacity-0 overflow-hidden relative"
         style={{ animationDelay: `${index * 80}ms` }}
-        onContextMenu={handleContext}
       >
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-error" />
         <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-active flex items-center justify-center">
           <AlertTriangle className="w-6 h-6 text-error/50" />
         </div>
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-error" />
-              <span className="font-semibold text-[14px] text-error">
-                Fetch Failed
-              </span>
+          <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-error" />
+                <span className="font-semibold text-[14px] text-error">Fetch Failed</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {onCopyUrl && (
+                  <Button variant="ghost" size="icon-sm" onClick={onCopyUrl} className="text-tertiary hover:text-primary h-7 w-7">
+                    <Copy size={13} />
+                  </Button>
+                )}
+                {onRemove && (
+                  <Button variant="ghost" size="icon-sm" onClick={onRemove} className="text-tertiary hover:text-error h-7 w-7">
+                    <X size={13} />
+                  </Button>
+                )}
+              </div>
             </div>
             <pre className="text-[10px] text-tertiary bg-black/20 p-2 rounded-md overflow-x-auto whitespace-pre font-mono max-h-[100px] scrollbar-thin">
               {data.error || "Unknown error"}
             </pre>
-          </div>
-          <div className="font-mono text-[10px] text-tertiary/50 truncate max-w-[300px] mt-2">
-            {data.url}
+            <div className="font-mono text-[10px] text-tertiary/50 truncate max-w-[300px] mt-1">
+              {data.url}
+            </div>
           </div>
       </div>
     );
@@ -102,7 +109,6 @@ export function VideoCard({
       <div
         className="glass-card border-error/20 rounded-xl p-4 flex gap-5 animate-card-enter opacity-0 overflow-hidden relative"
         style={{ animationDelay: `${index * 80}ms` }}
-        onContextMenu={handleContext}
       >
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-error" />
         <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-active">
@@ -114,18 +120,27 @@ export function VideoCard({
           )}
         </div>
         <div className="flex-1 flex flex-col justify-center py-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            <AlertTriangle className="w-4 h-4 text-error" />
-            <span className="font-semibold text-[14px] text-error">
-              Download Failed
-            </span>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-error" />
+              <span className="font-semibold text-[14px] text-error">Download Failed</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {onCopyUrl && (
+                <Button variant="ghost" size="icon-sm" onClick={onCopyUrl} className="text-tertiary hover:text-primary h-7 w-7">
+                  <Copy size={13} />
+                </Button>
+              )}
+              {onRemove && (
+                <Button variant="ghost" size="icon-sm" onClick={onRemove} className="text-tertiary hover:text-error h-7 w-7">
+                  <X size={13} />
+                </Button>
+              )}
+            </div>
           </div>
           <pre className="text-[10px] text-tertiary bg-black/20 p-2 rounded-md overflow-x-auto whitespace-pre font-mono max-h-[100px] scrollbar-thin mb-3">
             {data.error || "Unknown error"}
           </pre>
-          <div className="font-mono text-[10px] text-tertiary/50 truncate max-w-[300px] mb-4">
-            {data.url}
-          </div>
           <button
             onClick={onDownload}
             className="h-8 px-4 glass-card hover:border-error text-secondary hover:text-error font-medium text-[12px] rounded-lg transition-colors shadow-sm w-fit"
@@ -143,7 +158,6 @@ export function VideoCard({
       <div
         className="glass-card rounded-xl p-4 flex gap-5 animate-card-enter opacity-0 overflow-hidden relative"
         style={{ animationDelay: `${index * 80}ms` }}
-        onContextMenu={handleContext}
       >
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-warning" />
         <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-raised ring-1 ring-black/10">
@@ -184,7 +198,6 @@ export function VideoCard({
           draggable && "cursor-grab active:cursor-grabbing"
         )}
         style={{ animationDelay: `${index * 80}ms` }}
-        onContextMenu={handleContext}
         draggable={draggable}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
@@ -218,6 +231,11 @@ export function VideoCard({
             {formatLabel}
           </div>
         </div>
+        {onRemove && (
+          <Button variant="ghost" size="icon-sm" onClick={onRemove} className="absolute top-3 right-3 text-tertiary hover:text-error h-7 w-7">
+            <X size={13} />
+          </Button>
+        )}
       </div>
     );
   }
@@ -236,7 +254,6 @@ export function VideoCard({
         isPlaylistItem && !isChecked && data.status === "ready" && "opacity-50"
       )}
       style={{ animationDelay: `${index * 80}ms` }}
-      onContextMenu={handleContext}
     >
       {/* Duplicate warning left border */}
       {hasDuplicate && (
@@ -256,6 +273,20 @@ export function VideoCard({
           )}
         </button>
       )}
+
+      {/* Inline actions — top right, visible on hover */}
+      <div className="absolute top-2.5 right-2.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+        {onCopyUrl && (
+          <Button variant="ghost" size="icon-sm" onClick={onCopyUrl} className="text-tertiary hover:text-primary h-7 w-7 bg-base/60 backdrop-blur-sm">
+            <Copy size={13} />
+          </Button>
+        )}
+        {onRemove && (
+          <Button variant="ghost" size="icon-sm" onClick={onRemove} className="text-tertiary hover:text-error h-7 w-7 bg-base/60 backdrop-blur-sm">
+            <X size={13} />
+          </Button>
+        )}
+      </div>
 
       {/* Thumbnail */}
       <div className={cn(
@@ -341,59 +372,33 @@ export function VideoCard({
         {data.status === "ready" && (
           <div className="flex justify-between items-end mt-4 gap-4 flex-wrap">
             {category === "video" && data.formats && data.formats.length > 0 && (
-              <div className="flex gap-2 flex-wrap glass-card p-1 rounded-lg">
-                {data.formats.map((f) => (
-                  <QualityChip
-                    key={f.id}
-                    label={f.label}
-                    selected={f.id === data.selectedFormatId}
-                    onClick={() => onPickFormat(f.id)}
-                    size={fmtSize(f.filesize)}
-                  />
-                ))}
-              </div>
+              <QualitySelector
+                formats={data.formats.map((f) => ({ id: f.id, label: f.label, size: fmtSize(f.filesize) }))}
+                selectedId={data.selectedFormatId ?? undefined}
+                onSelect={onPickFormat}
+                layoutPrefix={`video-${index}`}
+              />
             )}
             {category === "audio" && (
-              <div className="flex gap-2 flex-wrap glass-card p-1 rounded-lg">
-                {[
+              <QualitySelector
+                formats={[
                   { id: "320", label: "320kbps" },
                   { id: "192", label: "192kbps" },
                   { id: "128", label: "128kbps" },
-                ].map((q) => (
-                  <QualityChip
-                    key={q.id}
-                    label={q.label}
-                    selected={q.id === (data.selectedFormatId ?? "320")}
-                    onClick={() => onPickFormat(q.id)}
-                  />
-                ))}
-              </div>
+                ]}
+                selectedId={data.selectedFormatId ?? "320"}
+                onSelect={onPickFormat}
+                layoutPrefix={`audio-${index}`}
+              />
             )}
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={(e) => {
-                  if (onContextMenu) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                     // pass fake event to trigger floating ContextMenu exactly at the button
-                    onContextMenu({
-                      preventDefault: () => {},
-                      clientX: rect.right,
-                      clientY: rect.top,
-                    } as unknown as React.MouseEvent);
-                  }
-                }}
-                className="h-[32px] w-[32px] flex items-center justify-center glass-card hover:bg-hover text-secondary hover:text-primary rounded-lg transition-all hover:shadow active:scale-[0.98]"
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onDownload}
-                disabled={isPlaylistItem && !isChecked}
-                className="h-[32px] px-4 glass-card hover:border-focus text-primary font-medium text-[12px] rounded-lg transition-all flex items-center gap-1.5 hover:shadow active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none bg-accent/10 border border-accent/20 hover:bg-accent/20"
-              >
-                <Download className="w-3.5 h-3.5" /> Download
-              </button>
-            </div>
+            <Button
+              size="sm"
+              onClick={onDownload}
+              disabled={isPlaylistItem && !isChecked}
+              className="h-8 gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" /> Download
+            </Button>
           </div>
         )}
 
@@ -422,11 +427,11 @@ export function VideoCard({
                   {pct > 0 ? `${Math.round(pct)}%` : "Starting..."}
                 </div>
               </div>
-              <Progress 
-                value={pct} 
+              <Progress
+                value={pct}
                 className="h-2 ring-1 ring-inset ring-white/10"
                 indicatorClassName="transition-all duration-300 ease-out"
-                indicatorStyle={{ backgroundColor: barColor, boxShadow: `0 0 12px ${glowColor}` }} 
+                indicatorStyle={{ backgroundColor: barColor, boxShadow: `0 0 12px ${glowColor}` }}
               />
             </div>
           );
@@ -446,11 +451,11 @@ export function VideoCard({
                 <FolderOpen size={12} /> Show in folder
               </button>
             </div>
-            <Progress 
-              value={100} 
-              className="h-1.5 ring-1 ring-inset ring-white/10" 
-              indicatorClassName="bg-[#00FF6A]" 
-              indicatorStyle={{ boxShadow: "0 0 12px rgba(0, 255, 106, 0.7)" }} 
+            <Progress
+              value={100}
+              className="h-1.5 ring-1 ring-inset ring-white/10"
+              indicatorClassName="bg-[#00FF6A]"
+              indicatorStyle={{ boxShadow: "0 0 12px rgba(0, 255, 106, 0.7)" }}
             />
           </div>
         )}
