@@ -78,17 +78,20 @@ export function VideoCard({
         <div className="w-[140px] h-[80px] shrink-0 relative rounded-lg overflow-hidden bg-active flex items-center justify-center">
           <AlertTriangle className="w-6 h-6 text-error/50" />
         </div>
-        <div className="flex-1 flex flex-col justify-center py-1">
-          <div className="flex items-center gap-2 mb-1.5">
-            <AlertTriangle className="w-4 h-4 text-error" />
-            <span className="font-semibold text-[14px] text-error">
-              {friendlyError(data.error || "Could not fetch video")}
-            </span>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-error" />
+              <span className="font-semibold text-[14px] text-error">
+                Fetch Failed
+              </span>
+            </div>
+            <pre className="text-[10px] text-tertiary bg-black/20 p-2 rounded-md overflow-x-auto whitespace-pre font-mono max-h-[100px] scrollbar-thin">
+              {data.error || "Unknown error"}
+            </pre>
           </div>
-          <div className="font-mono text-[11px] text-tertiary truncate max-w-[300px]">
+          <div className="font-mono text-[10px] text-tertiary/50 truncate max-w-[300px] mt-2">
             {data.url}
           </div>
-        </div>
       </div>
     );
   }
@@ -110,14 +113,17 @@ export function VideoCard({
             </div>
           )}
         </div>
-        <div className="flex-1 flex flex-col justify-center py-1">
+        <div className="flex-1 flex flex-col justify-center py-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             <AlertTriangle className="w-4 h-4 text-error" />
             <span className="font-semibold text-[14px] text-error">
-              {friendlyError(data.error || "Download failed")}
+              Download Failed
             </span>
           </div>
-          <div className="font-mono text-[11px] text-tertiary truncate max-w-[300px] mb-4">
+          <pre className="text-[10px] text-tertiary bg-black/20 p-2 rounded-md overflow-x-auto whitespace-pre font-mono max-h-[100px] scrollbar-thin mb-3">
+            {data.error || "Unknown error"}
+          </pre>
+          <div className="font-mono text-[10px] text-tertiary/50 truncate max-w-[300px] mb-4">
             {data.url}
           </div>
           <button

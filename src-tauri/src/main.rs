@@ -51,19 +51,24 @@ fn cleanup_webview_cache(app: &tauri::AppHandle) {
 
 fn main() {
     tauri::Builder::default()
-        // Single instance MUST be first plugin registered
+        /* 
+        // Single instance disabled to ensure launch
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.set_focus();
             }
         }))
+        */
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
-            cleanup_staging_dir(app.handle());
-            cleanup_webview_cache(app.handle());
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                cleanup_staging_dir(&handle);
+                cleanup_webview_cache(&handle);
+            });
 
             // Maximize then show — window starts hidden to avoid position glitch
             if let Some(window) = app.get_webview_window("main") {

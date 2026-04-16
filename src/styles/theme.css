@@ -115,8 +115,7 @@
 }
 
 /* Tailwind v4 theme tokens → dynamic via CSS variables */
-@import "tailwindcss";
-@import "tw-animate-css";
+/* @import "tw-animate-css"; */
 
 @theme {
   --color-base: var(--theme-base);

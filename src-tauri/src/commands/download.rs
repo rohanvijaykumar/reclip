@@ -106,19 +106,43 @@ pub struct PlaylistInfo {
 /// Detect whether a URL is a playlist.
 #[tauri::command]
 pub async fn get_playlist_info(app: AppHandle, url: String) -> Result<PlaylistInfo, String> {
+    let cfg = crate::config::read_config(&app);
+    let mut args = vec![
+        "--flat-playlist".into(),
+        "--no-warnings".into(),
+        "--no-check-certificates".into(),
+        "-J".into(),
+        url.clone(),
+    ];
+
+    let is_youtube = url.contains("youtube.com") || url.contains("youtu.be");
+    if is_youtube {
+        args.insert(args.len() - 2, "--extractor-args".into());
+        args.insert(args.len() - 2, "youtube:player_client=ios,web".into());
+    }
+    if let Some(ref browser) = cfg.cookies_browser {
+        if !browser.is_empty() && browser != "none" {
+            args.insert(0, "--cookies-from-browser".into());
+            args.insert(1, browser.clone());
+        }
+    }
+
     let output = app
         .shell()
         .sidecar("yt-dlp")
         .map_err(|e| format!("Failed to find yt-dlp: {}", e))?
-        .args(["--flat-playlist", "--no-warnings", "--no-check-certificates", "-J", &url])
+        .args(args)
         .output()
         .await
         .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
 
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        if stderr.contains("Failed to find sidecar") {
+            return Err("Binary not found: Check if yt-dlp is correctly bundled in the binaries folder.".to_string());
+        }
         let last_line = stderr.lines().last().unwrap_or("Unknown error");
-        return Err(last_line.to_string());
+        return Err(format!("{}: {}", last_line, stderr));
     }
 
     let info: serde_json::Value =
@@ -178,19 +202,43 @@ pub async fn get_playlist_info(app: AppHandle, url: String) -> Result<PlaylistIn
 /// Replaces POST /api/info from app.py:81-124
 #[tauri::command]
 pub async fn get_info(app: AppHandle, url: String) -> Result<VideoInfo, String> {
+    let cfg = crate::config::read_config(&app);
+    let mut args = vec![
+        "--no-playlist".into(),
+        "--no-warnings".into(),
+        "--no-check-certificates".into(),
+        "-j".into(),
+        url.clone(),
+    ];
+
+    let is_youtube = url.contains("youtube.com") || url.contains("youtu.be");
+    if is_youtube {
+        args.insert(args.len() - 2, "--extractor-args".into());
+        args.insert(args.len() - 2, "youtube:player_client=ios,web".into());
+    }
+    if let Some(ref browser) = cfg.cookies_browser {
+        if !browser.is_empty() && browser != "none" {
+            args.insert(0, "--cookies-from-browser".into());
+            args.insert(1, browser.clone());
+        }
+    }
+
     let output = app
         .shell()
         .sidecar("yt-dlp")
         .map_err(|e| format!("Failed to find yt-dlp: {}", e))?
-        .args(["--no-playlist", "--no-warnings", "--no-check-certificates", "-j", &url])
+        .args(args)
         .output()
         .await
         .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
 
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        if stderr.contains("Failed to find sidecar") {
+            return Err("Binary not found: Check if yt-dlp is correctly bundled in the binaries folder.".to_string());
+        }
         let last_line = stderr.lines().last().unwrap_or("Unknown error");
-        return Err(last_line.to_string());
+        return Err(format!("{}: {}", last_line, stderr));
     }
 
     let info: serde_json::Value =
@@ -296,20 +344,25 @@ pub async fn start_download(
         .to_string();
 
     // Locate ffmpeg sidecar binary for format merging/conversion.
-    // The binary is named ffmpeg-{target_triple}.exe — yt-dlp needs the full path
-    // since it won't find it by just searching for "ffmpeg.exe" in a directory.
     let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()));
 
     let ffmpeg_binary = exe_dir.as_ref().and_then(|dir| {
-        // Production: next to exe
-        let prod = dir.join("ffmpeg-x86_64-pc-windows-msvc.exe");
+        // 1. Check for renamed binary in exe folder (Production/Dev-Runtime)
+        let prod = dir.join("ffmpeg.exe");
         if prod.exists() { return Some(prod); }
-        // Dev mode: next to tauri.conf.json (in src-tauri root)
-        let dev = dir.join("../../ffmpeg-x86_64-pc-windows-msvc.exe");
-        if dev.exists() { return Some(std::fs::canonicalize(&dev).unwrap_or(dev)); }
-        None
+
+        // 2. Check for triple-named binary in exe folder
+        let triple = dir.join("ffmpeg-x86_64-pc-windows-msvc.exe");
+        if triple.exists() { return Some(triple); }
+
+        // 3. Dev mode: Check in src-tauri root
+        let dev = dir.join("ffmpeg-x86_64-pc-windows-msvc.exe");
+        if dev.exists() { return Some(dev); }
+
+        // 4. Fallback: Ask Tauri for the resource folder (if bundled)
+        app.path().resource_dir().ok().map(|d| d.join("ffmpeg-x86_64-pc-windows-msvc.exe")).filter(|p| p.exists())
     });
 
     // Read config for HW accel
@@ -323,11 +376,25 @@ pub async fn start_download(
         "--newline".into(),
         "--progress-template".into(),
         "download:DLP%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s".into(),
+    ];
+
+    let is_youtube = url.contains("youtube.com") || url.contains("youtu.be");
+    if is_youtube {
+        args.extend(["--extractor-args".into(), "youtube:player_client=ios,web".into()]);
+    }
+
+    if let Some(ref browser) = cfg.cookies_browser {
+        if !browser.is_empty() && browser != "none" {
+            args.extend(["--cookies-from-browser".into(), browser.clone()]);
+        }
+    }
+
+    args.extend([
         // Concurrent fragment downloads for faster speeds
         "--concurrent-fragments".into(), "4".into(),
         "-o".into(),
         out_template,
-    ];
+    ]);
 
     // Pass the full path to the ffmpeg binary
     if let Some(ref ffmpeg_path) = ffmpeg_binary {

@@ -139,6 +139,7 @@ export interface AppConfig {
   detectedGpu: string | null;
   filenameTemplate: string;
   folderRules: Record<string, string>;
+  cookiesBrowser?: string | null;
 }
 
 export interface GpuDetectionResult {
