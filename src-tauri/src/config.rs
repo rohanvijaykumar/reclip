@@ -20,8 +20,6 @@ pub struct AppConfig {
     pub filename_template: String,
     #[serde(default)]
     pub folder_rules: HashMap<String, String>,
-    #[serde(default)]
-    pub cookies_browser: Option<String>,
 }
 
 fn default_filename_template() -> String {
@@ -44,7 +42,6 @@ impl Default for AppConfig {
             detected_gpu: None,
             filename_template: default_filename_template(),
             folder_rules: HashMap::new(),
-            cookies_browser: None,
         }
     }
 }

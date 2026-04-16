@@ -8,11 +8,12 @@ export function TitleBar() {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
+    let unlistenFn: (() => void) | undefined;
     appWindow.isMaximized().then(setMaximized);
-    const unlisten = appWindow.onResized(() => {
+    appWindow.onResized(() => {
       appWindow.isMaximized().then(setMaximized);
-    });
-    return () => { unlisten.then((fn) => fn()); };
+    }).then((fn) => { unlistenFn = fn; });
+    return () => { unlistenFn?.(); };
   }, []);
 
   return (

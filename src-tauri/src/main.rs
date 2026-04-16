@@ -86,7 +86,6 @@ fn main() {
             commands::download::get_info,
             commands::download::start_download,
             commands::download::get_status,
-            commands::download::save_file,
             commands::download::cleanup_download,
             commands::config::get_config,
             commands::config::save_config,

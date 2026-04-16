@@ -230,51 +230,6 @@ export function SettingsView({ onBack }: Props) {
             </Item>
           </Section>
 
-          {/* YouTube Authentication */}
-          <Section title="YouTube Authentication" icon={<Monitor size={16} className="text-secondary" />}>
-            <Item 
-              label="Browser Cookies" 
-              description="Use session cookies from your browser to bypass YouTube bot detection (Sign in errors)."
-            >
-              <div className="flex gap-2 mt-2 sm:mt-0 flex-wrap">
-                <Select
-                  value={config.cookiesBrowser || "none"}
-                  onValueChange={(val) => updateConfig({ cookiesBrowser: val === "none" ? null : val })}
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="No browser">
-                      {(() => {
-                        const labels: Record<string, string> = { 
-                          none: "None (Default)", 
-                          chrome: "Chrome", 
-                          edge: "Edge", 
-                          firefox: "Firefox", 
-                          brave: "Brave",
-                          vivaldi: "Vivaldi",
-                          opera: "Opera",
-                          safari: "Safari"
-                        };
-                        return labels[config.cookiesBrowser || "none"] ?? "None (Default)";
-                      })()}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None (Default)</SelectItem>
-                    <SelectItem value="chrome">Chrome</SelectItem>
-                    <SelectItem value="edge">Microsoft Edge</SelectItem>
-                    <SelectItem value="firefox">Firefox</SelectItem>
-                    <SelectItem value="brave">Brave</SelectItem>
-                    <SelectItem value="safari">Safari (macOS)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </Item>
-            <div className="px-4 pb-4">
-              <p className="text-[11px] text-tertiary/80 leading-relaxed italic">
-                Note: Your browser must be closed or use a separate profile for this to work reliably if you encounter "profile lock" errors.
-              </p>
-            </div>
-          </Section>
         </div>
       </div>
     </div>

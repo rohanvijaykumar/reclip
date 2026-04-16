@@ -23,10 +23,6 @@ export async function startDownload(
   return invoke<string>("start_download", { url, format, formatId, title, outputFormat, thumbnail, platform, uploader });
 }
 
-export async function saveFile(jobId: string): Promise<string> {
-  return invoke<string>("save_file", { jobId });
-}
-
 export async function cleanupDownload(jobId: string): Promise<void> {
   return invoke("cleanup_download", { jobId });
 }

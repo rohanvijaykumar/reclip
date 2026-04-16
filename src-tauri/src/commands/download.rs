@@ -106,7 +106,6 @@ pub struct PlaylistInfo {
 /// Detect whether a URL is a playlist.
 #[tauri::command]
 pub async fn get_playlist_info(app: AppHandle, url: String) -> Result<PlaylistInfo, String> {
-    let cfg = crate::config::read_config(&app);
     let mut args = vec![
         "--flat-playlist".into(),
         "--no-warnings".into(),
@@ -119,12 +118,6 @@ pub async fn get_playlist_info(app: AppHandle, url: String) -> Result<PlaylistIn
     if is_youtube {
         args.insert(args.len() - 2, "--extractor-args".into());
         args.insert(args.len() - 2, "youtube:player_client=mweb,default".into());
-    }
-    if let Some(ref browser) = cfg.cookies_browser {
-        if !browser.is_empty() && browser != "none" {
-            args.insert(0, "--cookies-from-browser".into());
-            args.insert(1, browser.clone());
-        }
     }
 
     let output = app
@@ -202,7 +195,6 @@ pub async fn get_playlist_info(app: AppHandle, url: String) -> Result<PlaylistIn
 /// Replaces POST /api/info from app.py:81-124
 #[tauri::command]
 pub async fn get_info(app: AppHandle, url: String) -> Result<VideoInfo, String> {
-    let cfg = crate::config::read_config(&app);
     let mut args = vec![
         "--no-playlist".into(),
         "--no-warnings".into(),
@@ -215,12 +207,6 @@ pub async fn get_info(app: AppHandle, url: String) -> Result<VideoInfo, String> 
     if is_youtube {
         args.insert(args.len() - 2, "--extractor-args".into());
         args.insert(args.len() - 2, "youtube:player_client=mweb,default".into());
-    }
-    if let Some(ref browser) = cfg.cookies_browser {
-        if !browser.is_empty() && browser != "none" {
-            args.insert(0, "--cookies-from-browser".into());
-            args.insert(1, browser.clone());
-        }
     }
 
     let output = app
@@ -389,12 +375,6 @@ pub async fn start_download(
     let is_youtube = url.contains("youtube.com") || url.contains("youtu.be");
     if is_youtube {
         args.extend(["--extractor-args".into(), "youtube:player_client=mweb,default".into()]);
-    }
-
-    if let Some(ref browser) = cfg.cookies_browser {
-        if !browser.is_empty() && browser != "none" {
-            args.extend(["--cookies-from-browser".into(), browser.clone()]);
-        }
     }
 
     args.extend([
@@ -770,54 +750,3 @@ pub async fn get_status(
     }
 }
 
-/// Save completed download file to the user's Downloads folder.
-/// Replaces GET /api/file/<job_id> (app.py:160-165)
-#[tauri::command]
-pub async fn save_file(
-    app: AppHandle,
-    state: tauri::State<'_, JobStore>,
-    job_id: String,
-) -> Result<String, String> {
-    let job = state.get(&job_id).await.ok_or("Job not found")?;
-
-    match &job.status {
-        JobStatus::Done {
-            file_path,
-            filename,
-        } => {
-            let source = PathBuf::from(file_path);
-            if !source.exists() {
-                return Err("File no longer exists".into());
-            }
-
-            let downloads_dir = app
-                .path()
-                .download_dir()
-                .map_err(|e| format!("Failed to get Downloads folder: {}", e))?;
-
-            let dest = downloads_dir.join(filename);
-
-            // Handle name conflicts by appending (1), (2), etc.
-            let final_dest = if dest.exists() {
-                let stem = dest.file_stem().unwrap_or_default().to_string_lossy().to_string();
-                let ext = dest.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
-                let mut counter = 1;
-                loop {
-                    let candidate = downloads_dir.join(format!("{} ({}){}", stem, counter, ext));
-                    if !candidate.exists() {
-                        break candidate;
-                    }
-                    counter += 1;
-                }
-            } else {
-                dest
-            };
-
-            std::fs::copy(&source, &final_dest)
-                .map_err(|e| format!("Failed to save file: {}", e))?;
-
-            Ok(final_dest.file_name().unwrap_or_default().to_string_lossy().to_string())
-        }
-        _ => Err("File not ready".into()),
-    }
-}

@@ -139,7 +139,6 @@ export interface AppConfig {
   detectedGpu: string | null;
   filenameTemplate: string;
   folderRules: Record<string, string>;
-  cookiesBrowser?: string | null;
 }
 
 export interface GpuDetectionResult {
@@ -162,13 +161,4 @@ export interface HistoryEntry {
   outputFormat: string;
   quality: string;
   timestamp: number;
-}
-
-export interface ContextMenuItem {
-  label: string;
-  icon?: React.ReactNode;
-  action: () => void;
-  danger?: boolean;
-  disabled?: boolean;
-  separator?: boolean;
 }
