@@ -101,5 +101,5 @@ fn main() {
             commands::compress::cancel_compression,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running ReClip");
+        .expect("error while running DeClyp");
 }

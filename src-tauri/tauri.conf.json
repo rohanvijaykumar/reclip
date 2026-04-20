@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
-  "productName": "ReClip",
+  "productName": "DeClyp",
   "version": "2.0.0",
-  "identifier": "com.reclip.app",
+  "identifier": "com.declyp.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ReClip",
+        "title": "DeClyp",
         "width": 1200,
         "height": 650,
         "minWidth": 500,

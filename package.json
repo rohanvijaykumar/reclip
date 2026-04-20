@@ -1,7 +1,7 @@
 {
-  "name": "reclip",
+  "name": "declyp",
   "version": "2.0.0",
-  "description": "Privacy-first desktop media toolkit — download, convert, compress",
+  "description": "DeClyp — Privacy-first desktop media toolkit: download, convert, compress",
   "private": true,
   "type": "module",
   "scripts": {

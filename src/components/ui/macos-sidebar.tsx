@@ -3,6 +3,7 @@
 import { SidebarLeftIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion, AnimatePresence } from "motion/react";
+import logo from "@/assets/logo.png";
 import { useState, type ReactNode } from "react";
 
 export interface SidebarItem {
@@ -58,11 +59,14 @@ export function MacOSSidebar({
                 transition={{ duration: 0.15 }}
                 className="flex items-center gap-2.5"
               >
-                <svg width="28" height="28" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-                  <circle cx="64" cy="64" r="53.336" fill="#e85d2a"/>
-                  <path d="m53.008 49.051 26.996 14.949-26.996 14.949z" fill="#fff"/>
-                </svg>
-                <span className="text-[16px] font-bold tracking-tight text-primary">ReClip</span>
+                <div className="relative w-11 h-11 flex items-center justify-center shrink-0">
+                  <img 
+                    src={logo} 
+                    alt="DeClyp Logo" 
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <span className="text-[16px] font-bold tracking-tight text-primary">DeClyp</span>
               </motion.div>
             )}
           </AnimatePresence>

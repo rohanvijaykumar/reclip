@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<body>
+<canvas id="canvas" width="1024" height="1024"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const img = new Image();
+img.crossOrigin = "anonymous";
+img.onload = () => {
+    // Squircle path approximation
+    const size = 1024;
+    const padding = 100; // Match the Gold Master's padding
+    const boxSize = size - (padding * 2);
+    const radius = 180;
+
+    ctx.beginPath();
+    ctx.moveTo(padding + radius, padding);
+    ctx.lineTo(padding + boxSize - radius, padding);
+    ctx.quadraticCurveTo(padding + boxSize, padding, padding + boxSize, padding + radius);
+    ctx.lineTo(padding + boxSize, padding + boxSize - radius);
+    ctx.quadraticCurveTo(padding + boxSize, padding + boxSize, padding + boxSize - radius, padding + boxSize);
+    ctx.lineTo(padding + radius, padding + boxSize);
+    ctx.quadraticCurveTo(padding, padding + boxSize, padding, padding + boxSize - radius);
+    ctx.lineTo(padding, padding + radius);
+    ctx.quadraticCurveTo(padding, padding, padding + radius, padding);
+    ctx.closePath();
+    ctx.clip();
+
+    ctx.drawImage(img, 0, 0, 1024, 1024);
+    
+    // Log the result for the agent to grab
+    console.log("RESULT:" + canvas.toDataURL("image/png"));
+};
+img.src = "file:///C:/Users/91974/.gemini/antigravity/brain/10f09ef5-4e76-49e0-89bf-f003bff7a1cc/declyp_master_icon_gold_large_glow_squircle_final_1776696626382.png";
+</script>
+</body>
+</html>

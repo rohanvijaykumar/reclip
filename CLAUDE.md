@@ -1,4 +1,4 @@
-# ReClip - Desktop Media Toolkit
+# DeClyp - Desktop Media Toolkit
 
 Privacy-first desktop media toolkit for downloading, converting, and compressing media.
 
@@ -36,7 +36,7 @@ Current implementation uses `tauri_plugin_shell::ShellExt`. Sidecar names are `y
 - **Merging Logic**: `start_download` manually resolves `ffmpeg` to ensure video/audio merging works in both portable EXEs and installed apps.
 
 ### Settings Management
-Settings are stored in `%APPDATA%/com.reclip.app/config.json`.
+Settings are stored in `%APPDATA%/com.declyp.app/config.json`.
 - **Key Fields**: `cookies_browser`, `hw_accel_enabled`, `download_path`, `folder_rules`.
 
 ## Development Commands

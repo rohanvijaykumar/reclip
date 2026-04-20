@@ -1,4 +1,4 @@
-# ReClip
+# DeClyp
 
 A self-hosted, open-source video and audio downloader with a clean web UI. Paste links from YouTube, TikTok, Instagram, Twitter/X, and 1000+ other sites — download as MP4 or MP3.
 
@@ -7,7 +7,7 @@ A self-hosted, open-source video and audio downloader with a clean web UI. Paste
 
 https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 
-![ReClip MP3 Mode](assets/preview-mp3.png)
+![DeClyp MP3 Mode](assets/preview-mp3.png)
 
 ## Features
 
@@ -23,9 +23,9 @@ https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 
 ```bash
 brew install yt-dlp ffmpeg    # or apt install ffmpeg && pip install yt-dlp
-git clone https://github.com/averygan/reclip.git
-cd reclip
-./reclip.sh
+git clone https://github.com/averygan/declyp.git
+cd declyp
+./declyp.sh
 ```
 
 Open **http://localhost:8899**.
@@ -33,7 +33,7 @@ Open **http://localhost:8899**.
 Or with Docker:
 
 ```bash
-docker build -t reclip . && docker run -p 8899:8899 reclip
+docker build -t declyp . && docker run -p 8899:8899 declyp
 ```
 
 ## Usage

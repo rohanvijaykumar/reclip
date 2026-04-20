@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, HardDrive, LayoutGrid, Palette, Bell, Moon, Sun, Monitor, X, ClipboardCheck, Zap, RotateCcw, FileText, FolderTree, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useConfig } from "@/contexts/ConfigContext";
+import { HugeiconsIcon } from "@hugeicons/react";
+import logo from "@/assets/logo.png";
+import React from "react";
 import { Switch } from "./ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { FluidTabs } from "./ui/fluid-tabs";
@@ -82,7 +85,7 @@ export function SettingsView({ onBack }: Props) {
         <div className="w-full space-y-10 pb-12">
           {/* Appearance */}
           <Section title="Appearance" icon={<Palette size={16} className="text-secondary" />}>
-            <Item label="Theme" description="Choose how ReClip looks.">
+            <Item label="Theme" description="Choose how DeClyp looks.">
               <div className="flex bg-transparent mt-2 sm:mt-0">
                 <FluidTabs
                   tabs={[
@@ -229,6 +232,18 @@ export function SettingsView({ onBack }: Props) {
               </div>
             </Item>
           </Section>
+          
+          <div className="pt-8 border-t border-subtle/30 flex flex-col items-center justify-center text-center">
+            <div className="w-20 h-20 mb-4 relative flex items-center justify-center">
+              <img 
+                src={logo} 
+                alt="DeClyp Logo" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <p className="text-[14px] font-semibold text-primary">DeClyp v2.0.0</p>
+            <p className="text-[12px] text-tertiary mt-1">Privacy-first media toolkit. Locally powered.</p>
+          </div>
 
         </div>
       </div>
